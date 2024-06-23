@@ -1,5 +1,5 @@
 import { command, datapack, func, getFunc, getNamespace, modify, namespace, setRootPath, tag, toString } from "./datapacks_ts/datapacks.ts";
-import { text, underlined, bold, hoverEvent, clickEvent, italic } from "./datapacks_ts/text.ts";
+// import { text, underlined, bold, hoverEvent, clickEvent, italic } from "./datapacks_ts/text.ts";
 
 const scoreboards: {name: string, criteria: string, display: string | undefined}[] = [];
 const triggerFunctions: string[] = [];
@@ -28,13 +28,13 @@ datapack("aom", "Official age of minecraft datapack", 48, () => {
         });
         
         triggerFunc("help", () =>{
-            command("tellraw @s", [
-                text("Welcome to Age of Minecraft.\n", underlined(), bold()),
-                text("In order to get started place a sign, with the name of your town on the first line.\n"),
-                text("Then write "),
-                text("/trigger aom.start_village", underlined(), hoverEvent("/trigger aom.start_village"), clickEvent("/trigger aom.start_village", "suggest_command")),
-                text(", while looking at the sign, in order to start a new village.")
-            ]);
+            // command("tellraw @s", [
+            //     text("Welcome to Age of Minecraft.\n", underlined(), bold()),
+            //     text("In order to get started place a sign, with the name of your town on the first line.\n"),
+            //     text("Then write "),
+            //     text("/trigger aom.start_village", underlined(), hoverEvent("/trigger aom.start_village"), clickEvent("/trigger aom.start_village", "suggest_command")),
+            //     text(", while looking at the sign, in order to start a new village.")
+            // ]);
         });
 
         triggerFunc("start_town", () => {
@@ -65,9 +65,9 @@ datapack("aom", "Official age of minecraft datapack", 48, () => {
         
         func("update_town_lectern", () => {
             test();
-            update_lectern('Town book', 
-                `[${JSON.stringify(text("test"))},'(town_name)']`,
-                "['Test','aa']");
+            // update_lectern('Town book', 
+            //     `[${JSON.stringify(text("test"))},'(town_name)']`,
+            //     "['Test','aa']");
             // update_lectern('Town book', 
             //     `[[${JSON.stringify({text: 'abc'}).replaceAll('"', "'")},'aa']]`, "[['Test','aa']]");
         });

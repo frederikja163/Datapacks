@@ -1,0 +1,18 @@
+[
+    {"text": "Welcome to "},
+    {"text": "Age of Minecraft\n", "bold": true, "underlined": true},
+    {"text": "To start a new village place a sign, with the name of the town.\n Then write"},
+    {
+        "text": "/trigger aom.start_village",
+        "underlined": true,
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "/trigger aom.start_village"
+        },
+        "clickEvent": {
+            "action": "suggest_command",
+            "value": "/trigger aom.start_village"
+        }
+    },
+    {"text": ", while looking at the sign, in order to start a new village."}
+]

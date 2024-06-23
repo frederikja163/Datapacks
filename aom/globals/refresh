@@ -1,0 +1,12 @@
+{
+    "text": "[R]",
+    "color": "blue",
+    "hoverEvent": {
+        "action": "show_text",
+        "contents": "refresh"
+    },
+    "clickEvent": {
+        "action": "run_command",
+        "value": "/function aom:village/update_book with storage aom:$(village_index) $(building_index)"
+    }
+}

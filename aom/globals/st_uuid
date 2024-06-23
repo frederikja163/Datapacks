@@ -1,0 +1,4 @@
+$[1]data modify storage $[0] uuid0 set from entity @s UUID[0]
+$[1]data modify storage $[0] uuid1 set from entity @s UUID[1]
+$[1]data modify storage $[0] uuid2 set from entity @s UUID[2]
+$[1]data modify storage $[0] uuid3 set from entity @s UUID[3]

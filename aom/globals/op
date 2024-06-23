@@ -1,0 +1,1 @@
+scoreboard players operation reg0 aom.math $[0] reg1 aom.math

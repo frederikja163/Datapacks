@@ -1,0 +1,7 @@
+{
+    "pages":[
+        '${page1.json}'
+    ],
+    "title": '$(building_type)',
+    "author": "Age of Minecraft"
+}

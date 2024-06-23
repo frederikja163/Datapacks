@@ -1,0 +1,3 @@
+scoreboard players enable @a aom.$[0]
+execute at @a[scores={aom.$[0]=1}] as @a[scores={aom.$[0]=1}] run function aom:triggers/$[0]/
+scoreboard players set @a aom.$[0] 0

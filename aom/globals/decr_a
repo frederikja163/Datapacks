@@ -1,1 +1,1 @@
-scoreboard players remove reg0 aom.math $[0]
+scoreboard players remove reg0 aom.globals $[0]

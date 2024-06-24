@@ -1,1 +1,1 @@
-execute store result storage $[0] $[1] int 1 run scoreboard players get reg0 aom.math
+execute store result storage $[0] $[1] int 1 run scoreboard players get reg0 aom.globals

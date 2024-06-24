@@ -18,6 +18,10 @@
     {
         "text": "[Join]",
         "color": "green",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Join village"
+        },
         "clickEvent": {
             "action": "run_command",
             "value": "/function aom:buildings/village/book/join with storage aom:data villages.$(village_name).$(building_name)"

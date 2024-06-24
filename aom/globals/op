@@ -1,1 +1,0 @@
-scoreboard players operation reg0 aom.globals $[0] reg1 aom.globals

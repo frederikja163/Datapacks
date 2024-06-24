@@ -9,4 +9,6 @@ $data modify storage aom:data villages.$(village_name).$(building_name).x set fr
 $data modify storage aom:data villages.$(village_name).$(building_name).y set from block ~ ~ ~ y
 $data modify storage aom:data villages.$(village_name).$(building_name).z set from block ~ ~ ~ z
 
+$tellraw @a "New $(building_name) has been constructed for $(village_name)"
+
 $function aom:update_book with storage aom:data villages.$(village_name).$(building_name)

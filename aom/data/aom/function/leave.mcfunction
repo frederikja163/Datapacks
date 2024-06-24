@@ -5,4 +5,4 @@ $scoreboard players remove $(village_name) aom.villages.player_count 1
 data remove storage aom:data players.$(uuid0)$(uuid1)$(uuid2)$(uuid3).village_name
 
 $function aom:update_book with storage aom:data villages.$(village_name).village
-$tellraw @a "Joined $(village_name)"
+$tellraw @a "Left $(village_name)"

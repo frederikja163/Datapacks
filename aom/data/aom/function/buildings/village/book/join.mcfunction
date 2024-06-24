@@ -4,7 +4,4 @@ ${st_uuid aom:tmp uuid}
 function aom:join with storage aom:tmp
 
 ${rm aom:tmp village_name}
-${rm aom:tmp uuid0}
-${rm aom:tmp uuid1}
-${rm aom:tmp uuid2}
-${rm aom:tmp uuid3}
+${rm_uuid aom:tmp uuid}

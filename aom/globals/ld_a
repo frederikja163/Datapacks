@@ -1,1 +1,0 @@
-execute store result score reg0 aom.globals run data get storage $[0] $[1] 1

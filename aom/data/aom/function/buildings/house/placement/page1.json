@@ -1,7 +1,7 @@
 [
     "",
-    ${refresh},
-    "\\n$(building_name) of ",
+    ${toolbar},
+    "$(building_name) of ",
     {
         "text": "$(village_name)",
         "bold": true,

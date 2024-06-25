@@ -1,6 +1,6 @@
 [
     "",
-    ${refresh},
+    ${toolbar},
     "\\n$(building_name) of ",
     {
         "text": "$(village_name)",
@@ -24,7 +24,7 @@
         },
         "clickEvent": {
             "action": "run_command",
-            "value": "/function aom:buildings/village/book/join with storage aom:data villages.$(village_name).$(building_name)"
+            "value": "/function aom:buildings/village/placement/join with storage aom:data villages.$(village_name).$(building_name)"
         }
     }
 ]

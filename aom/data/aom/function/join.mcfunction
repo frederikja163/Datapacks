@@ -5,5 +5,4 @@ ${st_uuid aom:data players.$(uuid0)$(uuid1)$(uuid2)$(uuid3).uuid $}
 
 $scoreboard players add $(village_name) aom.villages.player_count 1
 
-$function aom:update_book with storage aom:data villages.$(village_name).village
 $tellraw @a "Joined $(village_name)"

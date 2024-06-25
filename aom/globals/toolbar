@@ -1,0 +1,29 @@
+{
+    "text": "[Move]",
+    "color": "blue",
+    "hoverEvent": {
+        "action": "show_text",
+        "contents": "Move the house somewhere else (Coming soon)"
+    },
+    "clickEvent": {
+        "action": "run_command",
+        "value": "/function aom:start_move"
+    }
+},
+{
+    "text": "[Delete]",
+    "color": "red",
+    "hoverEvent": {
+        "action": "show_text",
+        "contents": "Delete placement (coming soon)"
+    },
+    "clickEvent": {
+        "action": "run_command",
+        "value": "/function aom:delete_placement"
+    }
+},
+{
+    "text": "\\n$(village_name)/$(building_name)\\n",
+    "bold": true,
+    "underline": true
+},

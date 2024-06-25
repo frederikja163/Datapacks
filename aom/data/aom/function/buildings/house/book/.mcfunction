@@ -1,1 +1,0 @@
-${lectern "$<main.json>"}

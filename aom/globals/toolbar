@@ -19,7 +19,7 @@
     },
     "clickEvent": {
         "action": "run_command",
-        "value": "/function aom:delete_placement"
+        "value": "/function aom:delete_placement with storage aom:data villages.$(village_name).$(building_name).$(placement)"
     }
 },
 {

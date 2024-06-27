@@ -4,7 +4,7 @@ $tellraw @a ["A new village has appeared by the name of '$(village_name)'"]
 
 $data modify storage aom:data villages.$(village_name) set value {village_name: "$(village_name)"}
 
-$scoreboard players set $(village_name) aom.villages.building_count 0
+$scoreboard players set $(village_name) aom.villages.villager_count 0
 $scoreboard players set $(village_name) aom.villages.player_count 0
 
 $data modify storage aom:tmp new_village.village_name set value $(village_name)

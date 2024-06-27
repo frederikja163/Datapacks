@@ -1,0 +1,1 @@
+$execute unless block ~ ~ ~ minecraft:lectern run setblock ~ ~ ~ minecraft:lectern[has_book=true, facing=$(direction)]

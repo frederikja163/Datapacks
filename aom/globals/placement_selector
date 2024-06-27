@@ -1,0 +1,1 @@
+type=minecraft:marker,nbt={data:{aom:{id:"$[0]","placement":"$(placement)","building_name":"$(building_name)","village_name":"$(village_name)"}}}

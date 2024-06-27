@@ -8,6 +8,6 @@ $scoreboard players set $(village_name) aom.villages.villager_count 0
 $scoreboard players set $(village_name) aom.villages.player_count 0
 
 $data modify storage aom:tmp new_village.village_name set value $(village_name)
-data modify storage aom:tmp new_village.building_name set value "village"
+data modify storage aom:tmp new_village.building_name set value "townhouse"
 function aom:new_building with storage aom:tmp new_village
 ${rm aom:tmp new_village}

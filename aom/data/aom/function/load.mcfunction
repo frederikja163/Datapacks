@@ -5,8 +5,8 @@ scoreboard objectives add aom.players.ray dummy
 scoreboard objectives add aom.villages.villager_count dummy "Population"
 scoreboard objectives add aom.villages.player_count dummy
 
-scoreboard objectives add aom.buildings.village_acc dummy
-scoreboard objectives add aom.buildings.village_count dummy
+scoreboard objectives add aom.buildings.townhouse_acc dummy
+scoreboard objectives add aom.buildings.townhouse_count dummy
 scoreboard objectives add aom.buildings.house_acc dummy
 scoreboard objectives add aom.buildings.house_count dummy
 

@@ -15,7 +15,7 @@
     "color": "red",
     "hoverEvent": {
         "action": "show_text",
-        "contents": "Delete placement (coming soon)"
+        "contents": "Delete placement"
     },
     "clickEvent": {
         "action": "run_command",

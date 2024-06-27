@@ -1,7 +1,0 @@
-{
-    "pages":[
-        '${page1.json}'
-    ],
-    "title": '$(building_name)',
-    "author": "Age of Minecraft"
-}

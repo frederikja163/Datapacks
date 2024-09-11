@@ -22,8 +22,4 @@
         "value": "/function aom:delete_placement with storage aom:data villages.$(village_name).$(building_name).$(placement)"
     }
 },
-{
-    "text": "\\n$(village_name)/$(building_name)\\n",
-    "bold": true,
-    "underline": true
-},
+"\\n$(village_name)/$(building_name)\\n",

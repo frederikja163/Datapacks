@@ -1,7 +1,7 @@
 [
     {"text": "Welcome to "},
     {"text": "Age of Minecraft\n", "bold": true, "underlined": true},
-    {"text": "To start a new village place a sign, with the name of the town.\n Then write"},
+    {"text": "To start a new village place a sign, with the name of the town.\n Then write "},
     {
         "text": "/trigger aom.start_village",
         "underlined": true,

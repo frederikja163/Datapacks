@@ -1,0 +1,25 @@
+[
+    "",
+    ${toolbar},
+    {
+        "text":"Tool crafter",
+        "bold": true
+    },
+    "\\nUnlocks wooden tools\\nUnlocked: ",
+    {
+        "nbt": "villages.$(village_name).unlocks.wooden_tools",
+        "storage": "aom:data"
+    },
+    {
+        "text": "\\n[Hire]",
+        "color": "green",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Hire a villager if not unlocked already."
+        },
+        "clickEvent": {
+            "action": "run_command",
+            "value": "/function aom:buildings/lumbercamp/unlock_tools with storage aom:data villages.$(village_name).$(building_name).$(placement)"
+        }
+    }
+]

@@ -5,4 +5,6 @@ ${st_uuid aom:data players.$(uuid0)$(uuid1)$(uuid2)$(uuid3).uuid $}
 
 $scoreboard players add $(village_name) aom.villages.player_count 1
 
-$tellraw @a "Joined $(village_name)"
+function aom:update_player/ with entity @s
+
+$tellraw @a [{"selector":"@s","color":"gray"}," joined $(village_name)"]

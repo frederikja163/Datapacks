@@ -3,7 +3,7 @@ $data modify storage aom:tmp delete_placement.village_name set value $(village_n
 execute store result storage aom:tmp result int 1 run function aom:player_in_village with storage aom:tmp delete_placement
 ${rm aom:tmp delete_placement}
 execute if data storage aom:tmp {result:0} run tellraw @a {"text":"Must be part of village to remove building","color":"red"}
-execute if data storage aom:tmp {result:0} run return run data remove storage aom:tmp delete_placement
+execute if data storage aom:tmp {result:0} run return run data remove storage aom:tmp result
 
 $execute store result storage aom:tmp result int 1 run function aom:buildings/$(building_name)/placement/delete with storage aom:data villages.$(village_name).$(building_name).$(placement)
 execute if data storage aom:tmp {result:0} run return run data remove storage aom:tmp delete_placement

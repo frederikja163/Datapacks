@@ -9,7 +9,7 @@
         "text": "Clerks: ",
         "hoverEvent": {
             "action": "show_text",
-            "contents": "Every employed clerk for oak gives 1000 log storage"
+            "contents": "Every employed clerk for oak gives 576 log storage"
         }
     },
     {
@@ -64,5 +64,19 @@
     ${withdraw 576 aom:buildings/lumbercamp/oak_storage/withdraw_576},
     " ",
     ${withdraw all aom:buildings/lumbercamp/oak_storage/withdraw_all},
+    "\\nDeposit\\n",
+    ${deposit 1 aom:buildings/lumbercamp/oak_storage/deposit_1},
+    " ",
+    ${deposit 8 aom:buildings/lumbercamp/oak_storage/deposit_8},
+    " ",
+    ${deposit 16 aom:buildings/lumbercamp/oak_storage/deposit_16},
+    " ",
+    ${deposit 32 aom:buildings/lumbercamp/oak_storage/deposit_32},
+    " ",
+    ${deposit 64 aom:buildings/lumbercamp/oak_storage/deposit_64},
+    " ",
+    ${deposit 576 aom:buildings/lumbercamp/oak_storage/deposit_576},
+    " ",
+    ${deposit all aom:buildings/lumbercamp/oak_storage/deposit_all},
     " ",
 ]

@@ -9,7 +9,7 @@ scoreboard players reset tmp aom.globals
 
 # Add 1000 storage
 $execute store result score tmp aom.globals run data get storage aom:data villages.$(village_name).$(building_name).oak.max_items
-scoreboard players add tmp aom.globals 1000
+scoreboard players add tmp aom.globals 576
 $execute store result storage aom:data villages.$(village_name).$(building_name).oak.max_items int 1 run scoreboard players get tmp aom.globals
 scoreboard players reset tmp aom.globals
 

@@ -1,0 +1,68 @@
+[
+    "",
+    {
+        "text": "Oak logs",
+        "bold": true
+    },
+    "\\n",
+    {
+        "text": "Clerks: ",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Every employed clerk for oak gives 1000 log storage"
+        }
+    },
+    {
+        "nbt": "villages.$(village_name).$(building_name).oak.clerks",
+        "storage": "aom:data",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Every employed clerk for oak gives 1000 log storage"
+        }
+    },
+    {
+        "text": " [Hire]",
+        "color": "green",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Hire another oak storage clerk."
+        },
+        "clickEvent": {
+            "action": "run_command",
+            "value": "/function aom:buildings/lumbercamp/oak_storage/hire_clerk with storage aom:data villages.$(village_name).$(building_name).$(placement)"
+        }
+    },
+    "\\nStorage: ",
+    {
+        "nbt": "villages.$(village_name).$(building_name).oak.items",
+        "storage": "aom:data",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Current amount of items."
+        }
+    },
+    "/",
+    {
+        "nbt": "villages.$(village_name).$(building_name).oak.max_items",
+        "storage": "aom:data",
+        "hoverEvent": {
+            "action": "show_text",
+            "contents": "Max amount of items."
+        }
+    },
+    "\\nWithdraw\\n",
+    ${withdraw 1 aom:buildings/lumbercamp/oak_storage/withdraw_1},
+    " ",
+    ${withdraw 8 aom:buildings/lumbercamp/oak_storage/withdraw_8},
+    " ",
+    ${withdraw 16 aom:buildings/lumbercamp/oak_storage/withdraw_16},
+    " ",
+    ${withdraw 32 aom:buildings/lumbercamp/oak_storage/withdraw_32},
+    " ",
+    ${withdraw 64 aom:buildings/lumbercamp/oak_storage/withdraw_64},
+    " ",
+    ${withdraw 576 aom:buildings/lumbercamp/oak_storage/withdraw_576},
+    " ",
+    ${withdraw all aom:buildings/lumbercamp/oak_storage/withdraw_all},
+    " ",
+]

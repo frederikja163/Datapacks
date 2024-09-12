@@ -2,7 +2,7 @@
     "",
     ${toolbar},
     {
-        "text":"Tool crafter",
+        "text":"\\nTool crafter",
         "bold": true
     },
     "\\nUnlocks wooden tools\\nUnlocked: ",

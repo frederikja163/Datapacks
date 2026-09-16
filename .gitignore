@@ -4,3 +4,5 @@ dist/
 .beet_cache/
 .venv/
 packs/*/build/
+*.swp
+*.swo

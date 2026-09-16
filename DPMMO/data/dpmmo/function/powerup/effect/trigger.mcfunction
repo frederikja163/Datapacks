@@ -1,6 +1,6 @@
 tellraw @s [{text: "--------------", color: yellow}]
 
-$tellraw @s [{storage: "dpmmo:skill", nbt: "$(skill).Effect", color: gold}, " " , {score:{name:"$(name)", objective:"$(skill)_Amplifier"}}]
+$tellraw @s [{storage: "dpmmo:skill", nbt: "$(skill).Effect", interpret: true, color: gold}, " " , {score:{name:"$(name)", objective:"$(skill)_Amplifier"}}]
 $tellraw @s [{text: "Duration: ", color: "gold"}, {score:{name:"$(name)", objective:"$(skill)_time_max"}, color: aqua}, {text: "s", color: aqua}]
 tellraw @s [{text: "Cooldown: ", color: "gold"}, {text: "300s", color: aqua}]
 

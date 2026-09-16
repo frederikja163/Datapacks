@@ -13,7 +13,7 @@ $data modify storage dpmmo:powerup effect.effect set from storage dpmmo:skill $(
 
 function dpmmo:powerup/effect/give_effect with storage dpmmo:powerup effect
 
-$tellraw @s [{storage: "dpmmo:skill", nbt:"$(skill).display", color:gold}, {text: " • ", color: "dark_gray"}, {storage: "dpmmo:skill", nbt:"$(skill).Effect", color:gold}, " ", {score:{name:"@s",objective:"$(skill)_Amplifier"}, color: gold}, {text:" Started!", color: green}, {text: " • ", color: "dark_gray"}, {storage:"dpmmo:powerup", nbt:"effect.time",color:"aqua"},{text:"s", color:aqua}]
+$tellraw @s [{storage: "dpmmo:skill", nbt:"$(skill).display", interpret: true, color:gold}, {text: " • ", color: "dark_gray"}, {storage: "dpmmo:skill", nbt:"$(skill).Effect", interpret: true, color:gold}, " ", {score:{name:"@s",objective:"$(skill)_Amplifier"}, color: gold}, {text:" Started!", color: green}, {text: " • ", color: "dark_gray"}, {storage:"dpmmo:powerup", nbt:"effect.time",color:"aqua"},{text:"s", color:aqua}]
 execute at @s run playsound block.note_block.pling player @s ~ ~ ~ 0.4 1.2 0.2
 
 data remove storage dpmmo:powerup effect

@@ -59,10 +59,30 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - name: Package datapack
         run: |
+          set -euo pipefail
           pack="${{ matrix.pack }}"
-          zip -r "${pack}.zip" "$pack"
+
+          if grep -rIlq -e '\${' -e '\$<' -e '\$\[' "$pack" --exclude-dir=.git; then
+            args=()
+            if [ -d "$pack/globals" ]; then
+              args+=(-m "$pack/globals")
+            fi
+            rm -rf build
+            dotnet FileCompiler/FileCompiler.dll "$pack" "${args[@]}" -o "build/$pack"
+            rm -rf "build/$pack/globals"
+            (cd "build/$pack" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
+          else
+            (cd "$pack" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
+          fi
+
+          ls -l "${pack}.zip"
 
       - name: Create release
         env:

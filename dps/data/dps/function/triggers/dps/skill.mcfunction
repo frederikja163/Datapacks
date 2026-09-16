@@ -1,0 +1,1 @@
+$tellraw @s [{storage: "dps:skill", nbt: "$(skill).display", interpret: true, color: gold}, {text: " Lv", color: "aqua"}, {score: {name:"$(name)", objective:"$(skill)_level"}, color: "aqua"}, {text:" (", color:"white"}, {score: {name:"$(name)", objective: "$(skill)_percentage"}, color: "yellow"}, {text: "%", color: "yellow"}, {text:")", color:"white"}]

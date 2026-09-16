@@ -1,0 +1,15 @@
+{
+  "criteria": {
+    "using_item": {
+      "trigger": "using_item",
+      "conditions": {
+        "item": {
+          "items": "#dps:combat_tool"
+        }
+      }
+    }
+  },
+  "rewards": {
+    "function": "dps:skill/combat/use"
+  }
+}

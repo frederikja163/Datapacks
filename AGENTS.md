@@ -27,6 +27,7 @@ Generated output lives in `packs/<name>/build/<name>/` and is gitignored. Never 
 - **Reference functions through `FunctionRef`s.** `d.defineFunction()` returns a handle; build call lines from `ref.name`. This catches typos and dangling references. Raw `dps:foo/bar` strings are only acceptable inside macro bodies where a runtime macro is required.
 - **Registry ids are typed.** If you need a new item/block/effect/sound/entity id, add it to `mcgen/src/models/index.ts` first. This is the "internal model" that gets updated for new Minecraft versions.
 - **One pack per folder** under `packs/`, registered in `scripts/build.ts`. The pack namespace must match the folder name.
+- **Versions come from `VERSION` files** (`packs/<name>/VERSION`, `aom/VERSION`) containing a `MAJOR.MINOR` base. The release workflow appends the existing tag count as the patch; never rename or hand-edit release tags. Bump the base file to start a new minor/major line.
 - `mcgen/` is shared: changes there rebuild and can affect every pack, so run `bun run typecheck` and `bun run build` after editing it.
 
 ## Verifying changes

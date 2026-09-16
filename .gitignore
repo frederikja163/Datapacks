@@ -1,1 +1,6 @@
 datapacks/
+node_modules/
+dist/
+.beet_cache/
+.venv/
+packs/*/build/

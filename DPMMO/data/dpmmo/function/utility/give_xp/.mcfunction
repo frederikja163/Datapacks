@@ -1,0 +1,1 @@
+$execute as @a[scores={$(name)=1..}] run function dpmmo:utility/give_xp/success {skill: "$(skill)", name: "$(name)"}

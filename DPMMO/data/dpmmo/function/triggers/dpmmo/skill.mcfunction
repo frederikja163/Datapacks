@@ -1,0 +1,1 @@
+$tellraw @s [{storage: "dpmmo:skill", nbt: "$(skill).display", color: gold}, {text: " Lv", color: "aqua"}, {score: {name:"$(name)", objective:"$(skill)_level"}, color: "aqua"}, {text:" (", color:"white"}, {score: {name:"$(name)", objective: "$(skill)_percentage"}, color: "yellow"}, {text: "%", color: "yellow"}, {text:")", color:"white"}]

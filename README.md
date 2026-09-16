@@ -48,17 +48,17 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 ## Versioning
 
-Each project has a `VERSION` file containing its base version as `MAJOR.MINOR` (for example `0.1`):
+Each project has a `VERSION` file containing its base version as `MAJOR.MINOR` (for example `1.0`):
 
 - `packs/<name>/VERSION` for the TypeScript packs
 - `aom/VERSION`
 
 Releases are automatic and patch-incrementing. The workflow counts the existing git tags for the current base (`<pack>-<base>.*`) and uses that count as the patch:
 
-- `VERSION` = `0.1`, no prior releases → `dps-0.1.0`
-- After three releases of `0.1` → next is `dps-0.1.3`
+- `VERSION` = `1.0`, no prior releases → `dps-1.0.0`
+- After three releases of `1.0` → next is `dps-1.0.3`
 
-To start a new minor or major line, edit the `VERSION` file (e.g. to `0.2`); the patch counter starts at `.0` again.
+To start a new minor or major line, edit the `VERSION` file (e.g. to `1.1`); the patch counter starts at `.0` again.
 
 ## Releases
 

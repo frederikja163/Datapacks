@@ -33,6 +33,7 @@ export { LATEST };
 export const ITEMS = [
   "minecraft:air",
   "minecraft:armor_stand",
+  "minecraft:oak_log",
   "minecraft:written_book",
   "minecraft:stripped_acacia_log",
   "minecraft:stripped_birch_log",
@@ -100,6 +101,7 @@ export const ENTITY_TYPES = [
   "minecraft:husk",
   "minecraft:llama",
   "minecraft:magma_cube",
+  "minecraft:marker",
   "minecraft:pig",
   "minecraft:piglin",
   "minecraft:piglin_brute",

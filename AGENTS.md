@@ -6,15 +6,13 @@ Guidance for AI agents (and humans) working in this repository.
 
 Minecraft Java datapacks generated from TypeScript. One shared library (`mcgen/`) plus one entry point per datapack (`packs/<name>/src/index.ts`). Output is plain `.mcfunction` files and JSON resources — there is no runtime dependency on TypeScript.
 
-`aom/` is a **legacy exception**: it is authored with FileCompiler (`${...}`, `$<...>`, `$[...]`) and is intentionally not part of the TypeScript pipeline. Do not migrate `aom/` unless explicitly asked; a rebuild from scratch is planned instead. It is also excluded from the release workflow, so changes under `aom/` and `FileCompiler/` publish no releases.
-
 ## Commands
 
 ```sh
 bun install
 bun run typecheck        # must pass before committing
 bun run build            # build all TypeScript packs
-bun run build <name>     # build one pack (dps, imsp, unbreakable)
+bun run build <name>     # build one pack (aom, dps, imsp, unbreakable)
 bun run gen              # regenerate mcgen/src/models/versions.generated.ts
 ```
 
@@ -27,7 +25,7 @@ Generated output lives in `packs/<name>/build/<name>/` and is gitignored. Never 
 - **Reference functions through `FunctionRef`s.** `d.defineFunction()` returns a handle; build call lines from `ref.name`. This catches typos and dangling references. Raw `dps:foo/bar` strings are only acceptable inside macro bodies where a runtime macro is required.
 - **Registry ids are typed.** If you need a new item/block/effect/sound/entity id, add it to `mcgen/src/models/index.ts` first. This is the "internal model" that gets updated for new Minecraft versions.
 - **One pack per folder** under `packs/`, registered in `scripts/build.ts`. The pack namespace must match the folder name.
-- **Versions come from `VERSION` files** (`packs/<name>/VERSION`, `aom/VERSION`) containing a `MAJOR.MINOR` base. The release workflow appends the existing tag count as the patch; never rename or hand-edit release tags. Bump the base file to start a new minor/major line.
+- **Versions come from `VERSION` files** (`packs/<name>/VERSION`) containing a `MAJOR.MINOR` base. The release workflow appends the existing tag count as the patch; never rename or hand-edit release tags. Bump the base file to start a new minor/major line.
 - `mcgen/` is shared: changes there rebuild and can affect every pack, so run `bun run typecheck` and `bun run build` after editing it.
 
 ## Verifying changes

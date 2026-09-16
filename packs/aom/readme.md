@@ -1,6 +1,6 @@
 # Age of Minecraft (AOM) — Implementation Spec
 
-> **Self-contained.** Implement from this file only. The legacy FileCompiler pack in `aom/` is historical, is not part of the TypeScript build, and must not be ported (see the appendix at the end).
+> **Self-contained.** Implement from this file only. The previous FileCompiler pack was removed after this rebuild; the pitfalls it hit are listed at the end.
 >
 > Target: `packs/aom` (TypeScript), Minecraft **26.3** (data pack format **121.0**). Follow the repo conventions in `AGENTS.md`: use `mcgen`, `defineFunction`/`FunctionRef`, typed text components, and run `bun run typecheck` before committing.
 
@@ -306,11 +306,9 @@ Generation, scans and rendering iterate anchor markers, so they only cover loade
 11. Anchors are marker entities; storage remains the source of truth for building state.
 12. **aom stays unreleased for now**: do not add `packs/aom/VERSION` until the first release is intended, since its presence is what makes the workflow publish a release.
 
-## Appendix — legacy pack
+## Appendix — legacy pitfalls
 
-The previous implementation lives in `aom/` and is built with FileCompiler (`${...}`, `$<...>`, `$[...]`, methods in `aom/globals/`). It is kept only for reference and is excluded from releases.
-
-Useful context, not requirements:
+Context from the previous FileCompiler implementation that was removed after this rebuild. Useful context, not requirements:
 
 - Legacy building ids were `townhouse`, `house`, `lumbercamp`; storage was oak-only; the book was rewritten every tick and the building anchor was a lectern.
 - Known legacy pitfalls **do not repeat**: missing `$` macro prefixes making data edits no-ops, raw SNBT insertion of names, inverted `y_rotation` ranges, per-tick book/marker work, guards reading the wrong key (`rueslt`), and unlock flags written to one path but read from another.

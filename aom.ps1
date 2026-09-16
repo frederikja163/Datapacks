@@ -1,1 +1,0 @@
-FileCompiler/FileCompiler aom -m aom/globals -o C:/Users/fjapl/Documents/Minecraft/Survival/saves/DatapackTesting/datapacks/aom

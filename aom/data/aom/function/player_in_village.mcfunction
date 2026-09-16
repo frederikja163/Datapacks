@@ -1,1 +1,0 @@
-$return run execute if data storage aom:data {players:{$(uuid0)$(uuid1)$(uuid2)$(uuid3):{village_name:"$(village_name)"}}}

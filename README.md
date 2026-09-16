@@ -9,16 +9,13 @@ The goal of the TypeScript pipeline is that generated commands are typed: invali
 | Path | Description |
 | --- | --- |
 | `mcgen/` | Shared TypeScript library: datapack builder, typed text components, command helpers, version and registry models. |
-| `packs/<name>/src/` | Source of one datapack per folder. Currently `dps`, `imsp` and `unbreakable`. |
+| `packs/<name>/src/` | Source of one datapack per folder. Currently `aom`, `dps`, `imsp` and `unbreakable`. |
 | `packs/<name>/build/<name>/` | Generated datapack output (gitignored). |
-| `aom/` | Legacy "Age of Minecraft" datapack, still authored with **FileCompiler** and not yet ported. |
-| `FileCompiler/` | The preprocessor used to build `aom`. |
 | `scripts/` | `build.ts` (build packs) and `gen-models.ts` (regenerate version models). |
 
 ## Requirements
 
 - [Bun](https://bun.sh) (the build runs TypeScript directly)
-- .NET 8 runtime, only for building `aom`
 
 ## Commands
 
@@ -49,7 +46,7 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 ## Versioning
 
-Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). The release workflow only considers packs that have a version file, so this doubles as the "is this pack releasable?" switch. `aom` is not released at the moment while it is being rebuilt.
+Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). The release workflow only considers packs that have a version file, so this doubles as the "is this pack releasable?" switch. `aom` has no version file yet and is not released.
 
 Releases are automatic and patch-incrementing. The workflow counts the existing git tags for the current base (`<pack>-<base>.*`) and uses that count as the patch:
 
@@ -62,8 +59,7 @@ To start a new minor or major line, edit the `VERSION` file (e.g. to `1.1`); the
 
 `.github/workflows/release.yml` runs on pushes to `main`. It detects which packs changed and publishes a GitHub release per pack. Only packs under `packs/*` that have a `VERSION` file are eligible.
 
-- TypeScript packs are built with `bun run build <pack>` and zipped from `packs/<pack>/build/<pack>/`.
-- Changes to `mcgen/`, `scripts/` or the root toolchain files rebuild every TypeScript pack.
-- `aom` is currently excluded from releases while it is being rebuilt; changes under `aom/` and `FileCompiler/` publish nothing.
+- Packs are built with `bun run build <pack>` and zipped from `packs/<pack>/build/<pack>/`.
+- Changes to `mcgen/`, `scripts/` or the root toolchain files rebuild every pack.
 
 Each release is tagged `<pack>-<version>` (for example `dps-1.0.0`) using the `VERSION` file described above. Release assets always have `pack.mcmeta` at the root of the zip.

@@ -1,1 +1,0 @@
-$function aom:update_player/town with storage aom:data players.$(uuid0)$(uuid1)$(uuid2)$(uuid3)

@@ -1,2 +1,0 @@
-$data modify storage aom:tmp withdraw set value {village_name:"$(village_name)",id:"minecraft:oak_log",name:"oak log",count:1,storage:"$(building_name).oak"}
-function aom:withdraw/ with storage aom:tmp withdraw

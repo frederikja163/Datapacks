@@ -1,2 +1,0 @@
-$data modify storage aom:tmp deposit set value {village_name:"$(village_name)",id:"minecraft:oak_log",name:"oak logs",count:16,storage:"$(building_name).oak"}
-function aom:deposit/ with storage aom:tmp deposit

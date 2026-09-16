@@ -1,1 +1,0 @@
-execute if block ~ ~ ~ minecraft:lectern run data modify block ~ ~ ~ Book set value {"id":"minecraft:written_book","count":1,"components":{"minecraft:written_book_content":$[0]}}

@@ -1,1 +1,0 @@
-return run execute anchored eyes run function aom:ray {on_hit:"function aom:triggers/create_building/hit1"}

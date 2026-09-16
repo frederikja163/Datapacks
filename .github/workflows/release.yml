@@ -31,10 +31,21 @@ jobs:
           fi
 
           packs=()
-          for meta in */pack.mcmeta; do
-            dir="${meta%%/*}"
-            if printf '%s\n' "$changed" | grep -q "^${dir}/"; then
-              packs+=("$dir")
+
+          # aom is still authored with FileCompiler
+          if printf '%s\n' "$changed" | grep -qE '^(aom|FileCompiler)/'; then
+            packs+=(aom)
+          fi
+
+          # TypeScript packs live under packs/<name>/src and share mcgen/
+          shared=0
+          if printf '%s\n' "$changed" | grep -qE '^(mcgen|scripts)/|^(package\.json|tsconfig\.json|bun\.lock)$'; then
+            shared=1
+          fi
+          for dir in packs/*/; do
+            name="$(basename "$dir")"
+            if [ "$shared" = 1 ] || printf '%s\n' "$changed" | grep -q "^packs/${name}/"; then
+              packs+=("$name")
             fi
           done
 
@@ -59,27 +70,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Bun
+        if: matrix.pack != 'aom'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Setup .NET
+        if: matrix.pack == 'aom'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      - name: Package datapack
+      - name: Build datapack
         run: |
           set -euo pipefail
           pack="${{ matrix.pack }}"
 
-          if grep -rIlq -e '\${' -e '\$<' -e '\$\[' "$pack" --exclude-dir=.git; then
+          if [ "$pack" = "aom" ]; then
             args=()
-            if [ -d "$pack/globals" ]; then
-              args+=(-m "$pack/globals")
+            if [ -d aom/globals ]; then
+              args+=(-m aom/globals)
             fi
             rm -rf build
-            dotnet FileCompiler/FileCompiler.dll "$pack" "${args[@]}" -o "build/$pack"
-            rm -rf "build/$pack/globals"
-            (cd "build/$pack" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
+            dotnet FileCompiler/FileCompiler.dll aom "${args[@]}" -o build/aom
+            rm -rf build/aom/globals
+            (cd build/aom && zip -r "${GITHUB_WORKSPACE}/aom.zip" .)
           else
-            (cd "$pack" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
+            bun install --frozen-lockfile
+            bun run build "$pack"
+            (cd "packs/${pack}/build/${pack}" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
           fi
 
           ls -l "${pack}.zip"

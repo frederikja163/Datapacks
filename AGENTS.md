@@ -6,7 +6,7 @@ Guidance for AI agents (and humans) working in this repository.
 
 Minecraft Java datapacks generated from TypeScript. One shared library (`mcgen/`) plus one entry point per datapack (`packs/<name>/src/index.ts`). Output is plain `.mcfunction` files and JSON resources — there is no runtime dependency on TypeScript.
 
-`aom/` is a **legacy exception**: it is authored with FileCompiler (`${...}`, `$<...>`, `$[...]`) and is intentionally not part of the TypeScript pipeline. Do not migrate `aom/` unless explicitly asked; a rebuild from scratch is planned instead.
+`aom/` is a **legacy exception**: it is authored with FileCompiler (`${...}`, `$<...>`, `$[...]`) and is intentionally not part of the TypeScript pipeline. Do not migrate `aom/` unless explicitly asked; a rebuild from scratch is planned instead. It is also excluded from the release workflow, so changes under `aom/` and `FileCompiler/` publish no releases.
 
 ## Commands
 

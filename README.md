@@ -48,10 +48,7 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 ## Versioning
 
-Each project has a `VERSION` file containing its base version as `MAJOR.MINOR` (for example `1.0`):
-
-- `packs/<name>/VERSION` for the TypeScript packs
-- `aom/VERSION`
+Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). `aom` is not released at the moment while it is being rebuilt.
 
 Releases are automatic and patch-incrementing. The workflow counts the existing git tags for the current base (`<pack>-<base>.*`) and uses that count as the patch:
 
@@ -65,7 +62,7 @@ To start a new minor or major line, edit the `VERSION` file (e.g. to `1.1`); the
 `.github/workflows/release.yml` runs on pushes to `main`. It detects which packs changed and publishes a GitHub release per pack:
 
 - TypeScript packs are built with `bun run build <pack>` and zipped from `packs/<pack>/build/<pack>/`.
-- `aom` is built with FileCompiler (`FileCompiler/FileCompiler.dll aom -m aom/globals`) and zipped.
 - Changes to `mcgen/`, `scripts/` or the root toolchain files rebuild every TypeScript pack.
+- `aom` is currently excluded from releases while it is being rebuilt; changes under `aom/` and `FileCompiler/` publish nothing.
 
 Each release is tagged `<pack>-<version>` (for example `dps-0.1.0`) using the `VERSION` file described above. Release assets always have `pack.mcmeta` at the root of the zip.

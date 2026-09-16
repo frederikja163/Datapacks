@@ -32,11 +32,6 @@ jobs:
 
           packs=()
 
-          # aom is still authored with FileCompiler
-          if printf '%s\n' "$changed" | grep -qE '^(aom|FileCompiler)/'; then
-            packs+=(aom)
-          fi
-
           # TypeScript packs live under packs/<name>/src and share mcgen/
           shared=0
           if printf '%s\n' "$changed" | grep -qE '^(mcgen|scripts)/|^(package\.json|tsconfig\.json|bun\.lock)$'; then
@@ -77,11 +72,7 @@ jobs:
           set -euo pipefail
           pack="${{ matrix.pack }}"
 
-          if [ "$pack" = "aom" ]; then
-            file="aom/VERSION"
-          else
-            file="packs/${pack}/VERSION"
-          fi
+          file="packs/${pack}/VERSION"
           if [ ! -f "$file" ]; then
             echo "Missing version file: $file" >&2
             exit 1
@@ -99,36 +90,18 @@ jobs:
           echo "Releasing ${pack} ${version}"
 
       - name: Setup Bun
-        if: matrix.pack != 'aom'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-
-      - name: Setup .NET
-        if: matrix.pack == 'aom'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
 
       - name: Build datapack
         run: |
           set -euo pipefail
           pack="${{ matrix.pack }}"
 
-          if [ "$pack" = "aom" ]; then
-            args=()
-            if [ -d aom/globals ]; then
-              args+=(-m aom/globals)
-            fi
-            rm -rf build
-            dotnet FileCompiler/FileCompiler.dll aom "${args[@]}" -o build/aom
-            rm -rf build/aom/globals
-            (cd build/aom && zip -r "${GITHUB_WORKSPACE}/aom.zip" .)
-          else
-            bun install --frozen-lockfile
-            bun run build "$pack"
-            (cd "packs/${pack}/build/${pack}" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
-          fi
+          bun install --frozen-lockfile
+          bun run build "$pack"
+          (cd "packs/${pack}/build/${pack}" && zip -r "${GITHUB_WORKSPACE}/${pack}.zip" .)
 
           ls -l "${pack}.zip"
 

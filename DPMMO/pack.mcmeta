@@ -3,7 +3,7 @@
     "description": {
       "translate": "Datapack mmo. Inspired by MCMMO but in datapack form"
     },
-    "min_format": [88, 0],
-    "max_format": [88, 0]
+    "min_format": [121, 0],
+    "max_format": [121, 0]
   }
 }

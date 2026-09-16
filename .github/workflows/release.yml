@@ -1,0 +1,80 @@
+name: Release Datapacks
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      packs: ${{ steps.detect.outputs.packs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed datapacks
+        id: detect
+        run: |
+          before="${{ github.event.before }}"
+          sha="${{ github.sha }}"
+
+          if [ "$before" = "0000000000000000000000000000000000000000" ] || ! git rev-parse --verify "${before}^{commit}" >/dev/null 2>&1; then
+            changed="$(git show --pretty=format: --name-only "$sha")"
+          else
+            changed="$(git diff --name-only "$before" "$sha")"
+          fi
+
+          packs=()
+          for meta in */pack.mcmeta; do
+            dir="${meta%%/*}"
+            if printf '%s\n' "$changed" | grep -q "^${dir}/"; then
+              packs+=("$dir")
+            fi
+          done
+
+          if [ ${#packs[@]} -eq 0 ]; then
+            json="[]"
+          else
+            json="$(printf '%s\n' "${packs[@]}" | jq -R . | jq -cs .)"
+          fi
+
+          echo "packs=$json" >> "$GITHUB_OUTPUT"
+          echo "Changed datapacks: $json"
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.packs != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pack: ${{ fromJSON(needs.detect.outputs.packs) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package datapack
+        run: |
+          pack="${{ matrix.pack }}"
+          zip -r "${pack}.zip" "$pack"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pack="${{ matrix.pack }}"
+          sha="${{ github.sha }}"
+          short="${sha:0:7}"
+          tag="${pack}-${short}"
+
+          notes="$(git log -1 --pretty=format:'%h %s' "$sha")"
+
+          gh release create "$tag" "${pack}.zip" \
+            --title "${pack} ${short}" \
+            --notes "$notes"

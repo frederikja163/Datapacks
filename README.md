@@ -37,7 +37,8 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 1. Create `packs/<name>/src/index.ts` exporting `build(): Datapack`.
 2. Register it in `scripts/build.ts`.
-3. Run `bun run build <name>`.
+3. Add `packs/<name>/VERSION` with a `MAJOR.MINOR` base — packs without a version file are not released.
+4. Run `bun run build <name>`.
 
 ## Version updates
 
@@ -48,7 +49,7 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 ## Versioning
 
-Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). `aom` is not released at the moment while it is being rebuilt.
+Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). The release workflow only considers packs that have a version file, so this doubles as the "is this pack releasable?" switch. `aom` is not released at the moment while it is being rebuilt.
 
 Releases are automatic and patch-incrementing. The workflow counts the existing git tags for the current base (`<pack>-<base>.*`) and uses that count as the patch:
 
@@ -59,10 +60,10 @@ To start a new minor or major line, edit the `VERSION` file (e.g. to `1.1`); the
 
 ## Releases
 
-`.github/workflows/release.yml` runs on pushes to `main`. It detects which packs changed and publishes a GitHub release per pack:
+`.github/workflows/release.yml` runs on pushes to `main`. It detects which packs changed and publishes a GitHub release per pack. Only packs under `packs/*` that have a `VERSION` file are eligible.
 
 - TypeScript packs are built with `bun run build <pack>` and zipped from `packs/<pack>/build/<pack>/`.
 - Changes to `mcgen/`, `scripts/` or the root toolchain files rebuild every TypeScript pack.
 - `aom` is currently excluded from releases while it is being rebuilt; changes under `aom/` and `FileCompiler/` publish nothing.
 
-Each release is tagged `<pack>-<version>` (for example `dps-0.1.0`) using the `VERSION` file described above. Release assets always have `pack.mcmeta` at the root of the zip.
+Each release is tagged `<pack>-<version>` (for example `dps-1.0.0`) using the `VERSION` file described above. Release assets always have `pack.mcmeta` at the root of the zip.

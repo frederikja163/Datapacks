@@ -39,6 +39,10 @@ jobs:
           fi
           for dir in packs/*/; do
             name="$(basename "$dir")"
+            # only releasable packs: they must have a version file
+            if [ ! -f "packs/${name}/VERSION" ]; then
+              continue
+            fi
             if [ "$shared" = 1 ] || printf '%s\n' "$changed" | grep -q "^packs/${name}/"; then
               packs+=("$name")
             fi

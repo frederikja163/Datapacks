@@ -1,1 +1,0 @@
-$execute as @a[scores={$(name)=1..}] run function dps:utility/give_xp/success {skill: "$(skill)", name: "$(name)"}

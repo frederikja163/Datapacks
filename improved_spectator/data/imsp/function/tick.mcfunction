@@ -1,1 +1,0 @@
-execute as @a run function imsp:save_gamemode with entity @s

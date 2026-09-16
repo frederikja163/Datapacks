@@ -1,1 +1,0 @@
-$effect give @s $(effect) $(time) $(amplifier)

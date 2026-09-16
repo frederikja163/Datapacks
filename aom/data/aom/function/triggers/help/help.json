@@ -5,13 +5,13 @@
     {
         "text": "/trigger aom.start_village",
         "underlined": true,
-        "hoverEvent": {
+        "hover_event": {
             "action": "show_text",
-            "contents": "/trigger aom.start_village"
-        },
-        "clickEvent": {
-            "action": "suggest_command",
             "value": "/trigger aom.start_village"
+        },
+        "click_event": {
+            "action": "suggest_command",
+            "command": "/trigger aom.start_village"
         }
     },
     {"text": ", while looking at the sign, in order to start a new village."}

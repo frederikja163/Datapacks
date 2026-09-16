@@ -1,7 +1,8 @@
 {
     "pages":[
-        '${page1.json}'
+        ${page1.json}
     ],
     "title": "$(building_name)",
-    "author": "Age of Minecraft"
+    "author": "Age of Minecraft",
+    "resolved": false
 }

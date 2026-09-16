@@ -1,25 +1,25 @@
 {
     "text": "[Move]",
     "color": "blue",
-    "hoverEvent": {
+    "hover_event": {
         "action": "show_text",
-        "contents": "Move the house somewhere else (Coming soon)"
+        "value": "Move the house somewhere else (Coming soon)"
     },
-    "clickEvent": {
+    "click_event": {
         "action": "run_command",
-        "value": "/function aom:start_move"
+        "command": "/function aom:start_move"
     }
 },
 {
     "text": "[Delete]",
     "color": "red",
-    "hoverEvent": {
+    "hover_event": {
         "action": "show_text",
-        "contents": "Delete placement"
+        "value": "Delete placement"
     },
-    "clickEvent": {
+    "click_event": {
         "action": "run_command",
-        "value": "/function aom:delete_placement with storage aom:data villages.$(village_name).$(building_name).$(placement)"
+        "command": "/function aom:delete_placement with storage aom:data villages.$(village_name).$(building_name).$(placement)"
     }
 },
-"\\n$(village_name)/$(building_name)\\n",
+"\\n$(village_name)/$(building_name)\\n"

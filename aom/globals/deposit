@@ -1,12 +1,12 @@
 {
     "text": "[$[0]]",
     "color": "red",
-    "hoverEvent": {
+    "hover_event": {
         "action": "show_text",
-        "contents": "Deposit $[0] item(s)."
+        "value": "Deposit $[0] item(s)."
     },
-    "clickEvent": {
+    "click_event": {
         "action": "run_command",
-        "value": "/function $[1] with storage aom:data villages.$(village_name).$(building_name).$(placement)"
+        "command": "/function $[1] with storage aom:data villages.$(village_name).$(building_name).$(placement)"
     }
-},
+}

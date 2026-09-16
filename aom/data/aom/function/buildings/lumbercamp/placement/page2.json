@@ -7,47 +7,47 @@
     "\\n",
     {
         "text": "Clerks: ",
-        "hoverEvent": {
+        "hover_event": {
             "action": "show_text",
-            "contents": "Every employed clerk for oak gives 576 log storage"
+            "value": "Every employed clerk for oak gives 576 log storage"
         }
     },
     {
         "nbt": "villages.$(village_name).$(building_name).oak.clerks",
         "storage": "aom:data",
-        "hoverEvent": {
+        "hover_event": {
             "action": "show_text",
-            "contents": "Every employed clerk for oak gives 1000 log storage"
+            "value": "Every employed clerk for oak gives 1000 log storage"
         }
     },
     {
         "text": " [Hire]",
         "color": "green",
-        "hoverEvent": {
+        "hover_event": {
             "action": "show_text",
-            "contents": "Hire another oak storage clerk."
+            "value": "Hire another oak storage clerk."
         },
-        "clickEvent": {
+        "click_event": {
             "action": "run_command",
-            "value": "/function aom:buildings/lumbercamp/oak_storage/hire_clerk with storage aom:data villages.$(village_name).$(building_name).$(placement)"
+            "command": "/function aom:buildings/lumbercamp/oak_storage/hire_clerk with storage aom:data villages.$(village_name).$(building_name).$(placement)"
         }
     },
     "\\nStorage: ",
     {
         "nbt": "villages.$(village_name).$(building_name).oak.items",
         "storage": "aom:data",
-        "hoverEvent": {
+        "hover_event": {
             "action": "show_text",
-            "contents": "Current amount of items."
+            "value": "Current amount of items."
         }
     },
     "/",
     {
         "nbt": "villages.$(village_name).$(building_name).oak.max_items",
         "storage": "aom:data",
-        "hoverEvent": {
+        "hover_event": {
             "action": "show_text",
-            "contents": "Max amount of items."
+            "value": "Max amount of items."
         }
     },
     "\\nWithdraw\\n",
@@ -78,5 +78,5 @@
     ${deposit 576 aom:buildings/lumbercamp/oak_storage/deposit_576},
     " ",
     ${deposit all aom:buildings/lumbercamp/oak_storage/deposit_all},
-    " ",
+    " "
 ]

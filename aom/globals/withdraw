@@ -1,12 +1,12 @@
 {
     "text": "[$[0]]",
     "color": "green",
-    "hoverEvent": {
+    "hover_event": {
         "action": "show_text",
-        "contents": "Withdraw $[0] item(s)."
+        "value": "Withdraw $[0] item(s)."
     },
-    "clickEvent": {
+    "click_event": {
         "action": "run_command",
-        "value": "/function $[1] with storage aom:data villages.$(village_name).$(building_name).$(placement)"
+        "command": "/function $[1] with storage aom:data villages.$(village_name).$(building_name).$(placement)"
     }
-},
+}

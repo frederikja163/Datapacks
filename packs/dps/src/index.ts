@@ -148,6 +148,7 @@ export function build(): Datapack {
     nop: d.defineFunction("utility/nop", []),
     removeDurability: d.defineFunction("utility/remove_durability", [
       "execute if items entity @s weapon.mainhand *[minecraft:unbreakable] run return fail",
+      "execute if predicate dps:holding_unbreakable run return fail",
       "summon minecraft:armor_stand ~ ~ ~ {Tags:[dps_durability]}",
       "",
       "item replace entity @e[tag=dps_durability,limit=1] weapon.mainhand from entity @s weapon.mainhand",
@@ -669,10 +670,12 @@ export function build(): Datapack {
     ])}`,
   ]);
 
-  const triggerDps = d.defineFunction("triggers/dps/", [
+  // Shared "all skills" readout used by both /trigger dps and /trigger dps.info.
+  const showAllSkills = d.defineFunction("triggers/dps/all", [
     `tellraw @s ${snbt([text("=== [Data Pack Skills] ===", { color: "yellow" })])}`,
-    ...(["combat", "digging", "mining", "woodcutting", "enchanting", "farming"] as const).map(
-      (skill) => `$function ${triggerDpsSkill.name} {skill: "${sb(skill)}", name:"$(name)"}`,
+    ...SKILLS.map(
+      (skill) =>
+        `$function ${triggerDpsSkill.name} {skill: "${sb(skill.name)}", name:"$(name)"}`,
     ),
     `tellraw @s ${snbt([text("--------------", { color: "yellow" })])}`,
     `$tellraw @s ${snbt([
@@ -681,7 +684,16 @@ export function build(): Datapack {
       score("$(name)", "dps_total_level", { color: "aqua" }),
     ])}`,
     `tellraw @s ${snbt([text("=== [Data Pack Skills] ===", { color: "yellow" })])}`,
+  ]);
+
+  const triggerDps = d.defineFunction("triggers/dps/", [
+    `$function ${showAllSkills.name} {"name": "$(name)"}`,
     "scoreboard players set @s dps 0",
+  ]);
+
+  const triggerDpsInfo = d.defineFunction("triggers/dps/info", [
+    `$function ${showAllSkills.name} {"name": "$(name)"}`,
+    "scoreboard players set @s dps.info 0",
   ]);
 
   const triggerFor = (skill: SkillConfig): FunctionRef => {
@@ -768,6 +780,7 @@ export function build(): Datapack {
 
   const load = d.defineFunction("load", [
     "scoreboard objectives add dps trigger",
+    "scoreboard objectives add dps.info trigger",
     "scoreboard objectives add dps_tmp dummy",
     "scoreboard objectives add dps_globals dummy",
     "scoreboard objectives add dps_xp_config dummy",
@@ -807,6 +820,9 @@ export function build(): Datapack {
     "",
     `execute as @a[scores={dps=1..}] run function ${triggerDps.name} {"name":"@s"}`,
     "scoreboard players enable @a dps",
+    "",
+    `execute as @a[scores={dps.info=1..}] run function ${triggerDpsInfo.name} {"name":"@s"}`,
+    "scoreboard players enable @a dps.info",
     "",
     ...SKILLS.flatMap((skill) => {
       const scoreboard = sb(skill.name);
@@ -856,6 +872,28 @@ export function build(): Datapack {
     });
   }
 
+  // Tree cutter must not wear down tools made unbreakable by the unbreakable
+  // datapack's enchantment. The enchantment is referenced through a tag in
+  // this pack so the predicate still parses when the enchantment is not in the
+  // registry yet (custom enchantments only load at world start, so a /reload
+  // before the first restart must not fail).
+  d.tag("enchantment", "unbreakable", [
+    { id: "unbreakable:unbreakable", required: false },
+  ]);
+  d.predicate("holding_unbreakable", {
+    type: "minecraft:entity_properties",
+    entity: "this",
+    predicate: {
+      "minecraft:equipment": {
+        mainhand: {
+          predicates: {
+            "minecraft:enchantments": [{ enchantments: "#dps:unbreakable" }],
+          },
+        },
+      },
+    },
+  });
+
   for (const skill of ["combat", "digging", "mining", "woodcutting"] as const) {
     d.advancement(`${skill}_use`, {
       criteria: {
@@ -870,6 +908,7 @@ export function build(): Datapack {
 
   const uninstallObjectives = [
     "dps",
+    "dps.info",
     "dps_tmp",
     "dps_globals",
     "dps_xp_config",

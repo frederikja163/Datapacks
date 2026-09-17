@@ -5,6 +5,10 @@ import type { Version } from "./models/index.ts";
 export type CommandLine = string | undefined | null | false;
 export type Lines = CommandLine[];
 
+/** A tag entry: a plain id, or `{ id, required: false }` to tolerate the id
+ *  being absent (e.g. an enchantment defined by another datapack). */
+export type TagValue = string | { id: string; required?: boolean };
+
 /** A compile-time handle to a datapack function. Calling/referencing anything
  *  that is not a `FunctionRef` is a type error, so dangling function names are
  *  caught by `tsc` instead of at runtime. */
@@ -70,6 +74,29 @@ export class Datapack {
 
   advancement(path: string, value: unknown): void {
     this.json(`data/${this.namespace}/advancement/${path}.json`, value);
+  }
+
+  recipe(path: string, value: unknown): void {
+    this.json(`data/${this.namespace}/recipe/${path}.json`, value);
+  }
+
+  enchantment(path: string, value: unknown): void {
+    this.json(`data/${this.namespace}/enchantment/${path}.json`, value);
+  }
+
+  /** Extends a vanilla tag (`data/minecraft/tags/<registry>/<path>.json`).
+   *  Tags merge additively across datapacks unless `replace` is set, so this
+   *  adds entries to the vanilla tag rather than overwriting it. An entry may
+   *  be `{ id, required: false }` so a missing registry element (e.g. an
+   *  enchantment referenced before the registry reloads) does not fail the
+   *  whole tag and everything that depends on it. */
+  vanillaTag(registry: string, path: string, values: TagValue[]): void {
+    this.json(`data/minecraft/tags/${registry}/${path}.json`, { values });
+  }
+
+  /** A tag in this pack's own namespace (`data/<ns>/tags/<registry>/<path>`). */
+  tag(registry: string, path: string, values: TagValue[]): void {
+    this.json(`data/${this.namespace}/tags/${registry}/${path}.json`, { values });
   }
 
   itemTag(path: string, values: string[]): void {

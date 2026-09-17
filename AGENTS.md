@@ -12,7 +12,7 @@ Minecraft Java datapacks generated from TypeScript. One shared library (`mcgen/`
 bun install
 bun run typecheck        # must pass before committing
 bun run build            # build all TypeScript packs
-bun run build <name>     # build one pack (aom, dps, imsp, unbreakable)
+bun run build <name>     # build one pack (aom, dps, imsp, soulbound, unbreakable)
 bun run deploy           # build and copy packs into the world in deploy.config.json (needs that file)
 bun run gen              # regenerate mcgen/src/models/versions.generated.ts
 ```

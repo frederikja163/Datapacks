@@ -9,7 +9,7 @@ The goal of the TypeScript pipeline is that generated commands are typed: invali
 | Path | Description |
 | --- | --- |
 | `mcgen/` | Shared TypeScript library: datapack builder, typed text components, command helpers, version and registry models. |
-| `packs/<name>/src/` | Source of one datapack per folder. Currently `aom`, `dps`, `imsp` and `unbreakable`. |
+| `packs/<name>/src/` | Source of one datapack per folder. Currently `aom`, `dps`, `imsp`, `soulbound` and `unbreakable`. |
 | `packs/<name>/build/<name>/` | Generated datapack output (gitignored). |
 | `scripts/` | `build.ts` (build packs), `deploy.ts` (copy builds into a world) and `gen-models.ts` (regenerate version models). |
 

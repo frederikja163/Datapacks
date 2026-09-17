@@ -7,3 +7,4 @@ export * from "./raycast.ts";
 export * from "./signs.ts";
 export * from "./text.ts";
 export * from "./triggers.ts";
+export * from "./uninstall.ts";

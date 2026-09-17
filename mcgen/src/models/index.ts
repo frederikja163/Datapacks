@@ -101,6 +101,7 @@ export const ENTITY_TYPES = [
   "minecraft:husk",
   "minecraft:llama",
   "minecraft:magma_cube",
+  "minecraft:mannequin",
   "minecraft:marker",
   "minecraft:pig",
   "minecraft:piglin",

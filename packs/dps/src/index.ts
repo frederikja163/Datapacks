@@ -1,5 +1,6 @@
 import {
   Datapack,
+  defineUninstall,
   latestVersion,
   nbt,
   score,
@@ -146,6 +147,7 @@ export function build(): Datapack {
     ]),
     nop: d.defineFunction("utility/nop", []),
     removeDurability: d.defineFunction("utility/remove_durability", [
+      "execute if items entity @s weapon.mainhand *[minecraft:unbreakable] run return fail",
       "summon minecraft:armor_stand ~ ~ ~ {Tags:[dps_durability]}",
       "",
       "item replace entity @e[tag=dps_durability,limit=1] weapon.mainhand from entity @s weapon.mainhand",
@@ -820,12 +822,12 @@ export function build(): Datapack {
   d.onTick(tick);
 
   d.itemModifier("make_consumable", {
-    function: "minecraft:set_components",
-    components: { consumable: { consume_seconds: 100000000 } },
+    type: "minecraft:set_components",
+    components: { "minecraft:consumable": { consume_seconds: 100000000 } },
   });
   d.itemModifier("remove_consumable", {
-    function: "minecraft:set_components",
-    components: { "!consumable": {} },
+    type: "minecraft:set_components",
+    components: { "!minecraft:consumable": {} },
   });
 
   d.blockTag("logs", [
@@ -846,10 +848,10 @@ export function build(): Datapack {
 
   for (const skill of ["combat", "digging", "mining", "woodcutting"] as const) {
     d.predicate(`wearing_${skill}_tool`, {
-      condition: "minecraft:entity_properties",
+      type: "minecraft:entity_properties",
       entity: "this",
       predicate: {
-        equipment: { mainhand: { items: `#dps:${skill}_tool` } },
+        "minecraft:equipment": { mainhand: { items: `#dps:${skill}_tool` } },
       },
     });
   }
@@ -865,6 +867,50 @@ export function build(): Datapack {
       rewards: { function: `dps:skill/${skill}/use` },
     });
   }
+
+  const uninstallObjectives = [
+    "dps",
+    "dps_tmp",
+    "dps_globals",
+    "dps_xp_config",
+    "dps_lvl_up_type",
+    "dps_total_level",
+    ...SKILLS.flatMap((skill) => {
+      const base = `dps_${skill.name}`;
+      const suffixes = ["", "_level", "_xp", "_req", "_percentage"];
+      if (skill.powerup === "effect") {
+        suffixes.push(
+          "_cooldown",
+          "_time",
+          "_time_max",
+          "_amplifier",
+          "_Amplifier",
+        );
+      }
+      if (skill.powerup === "tree_cutter") {
+        suffixes.push(
+          "_cooldown",
+          "_cooldown_max",
+          "_charges",
+          "_charges_max",
+        );
+      }
+      return suffixes.map((suffix) => `${base}${suffix}`);
+    }),
+    ...Object.values(ACTIONS).flatMap((actions) =>
+      actions.map((action) => action.objective),
+    ),
+  ];
+
+  defineUninstall(d, {
+    objectives: uninstallObjectives,
+    storage: [
+      "dps:powerup effect",
+      ...SKILLS.map((skill) => `dps:skill ${skill.name}`),
+    ],
+    kill: ["@e[tag=dps_durability]"],
+    schedules: ["dps:second"],
+  });
 
   return d;
 }

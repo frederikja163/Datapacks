@@ -4,5 +4,6 @@ dist/
 .beet_cache/
 .venv/
 packs/*/build/
+deploy.config.json
 *.swp
 *.swo

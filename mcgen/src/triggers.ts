@@ -1,8 +1,14 @@
 // Trigger objective dispatch.
 //
 // `/trigger` lets non-operators set a score on themselves. Every tick the
-// dispatcher runs each handler as the players whose score matches, then resets
-// and re-enables the objectives so they can be used again.
+// dispatcher runs each handler as the players whose score matches, then zeroes
+// and re-enables the objectives. Zeroing with `set ... 0` (rather than a reset)
+// matters: `/trigger` fails for players who are not on the objective, so every
+// player must keep a score entry in it.
+//
+// `at @s` matters just as much: `as` changes only the executor, so without it
+// handlers would run at the tick function's default location, rotation and
+// dimension instead of the player's, breaking every raycast and `~ ~ ~` use.
 
 import type { FunctionRef, Lines } from "./pack.ts";
 
@@ -22,7 +28,7 @@ export function triggerDispatch(
   const objectives: string[] = [];
   for (const trigger of triggers) {
     dispatch.push(
-      `execute as @a[scores={${trigger.objective}=${trigger.match ?? "1.."}}] run function ${trigger.handler.name}`,
+      `execute as @a[scores={${trigger.objective}=${trigger.match ?? "1.."}}] at @s run function ${trigger.handler.name}`,
     );
     if (!objectives.includes(trigger.objective)) {
       objectives.push(trigger.objective);
@@ -33,7 +39,9 @@ export function triggerDispatch(
   return [
     ...dispatch,
     "",
-    ...objectives.map((objective) => `scoreboard players reset @a ${objective}`),
+    ...objectives.map(
+      (objective) => `scoreboard players set @a ${objective} 0`,
+    ),
     "",
     ...objectives.map((objective) => `scoreboard players enable @a ${objective}`),
   ];

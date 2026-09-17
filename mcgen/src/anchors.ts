@@ -14,6 +14,8 @@ export interface AnchorData {
   readonly town: string;
   /** Numeric building id, or a macro reference such as `$(id)`. */
   readonly building: number | string;
+  /** Building type id; lets menus dispatch without macro arguments. */
+  readonly type?: string;
 }
 
 export interface BlockPos {
@@ -54,5 +56,6 @@ export function summonAnchor(
   data: AnchorData,
   tag: string = DEFAULT_ANCHOR_TAG,
 ): string {
-  return `summon ${MARKER} ${pos} {Tags:["${tag}"],data:{aom:{town:"${data.town}",building:${data.building}}}}`;
+  const type = data.type ? `,type:"${data.type}"` : "";
+  return `summon ${MARKER} ${pos} {Tags:["${tag}"],data:{aom:{town:"${data.town}",building:${data.building}${type}}}}`;
 }

@@ -31,9 +31,16 @@ export class Datapack {
 
   defineFunction(path: string, lines: Lines): FunctionRef {
     const ref = this.ref(path);
-    const body = lines.filter(
-      (line): line is string => typeof line === "string" && line.length > 0,
-    );
+    const body = lines
+      .filter(
+        (line): line is string => typeof line === "string" && line.length > 0,
+      )
+      // Minecraft rejects a `$` line with no `$(...)` placeholder
+      // ("No variables in macro") and fails to load the whole function, so a
+      // prefixed line that ended up without macros is emitted as a plain line.
+      .map((line) =>
+        line.startsWith("$") && !line.includes("$(") ? line.slice(1) : line,
+      );
     this.set(
       `data/${this.namespace}/function/${path}.mcfunction`,
       body.length ? `${body.join("\n")}\n` : "",

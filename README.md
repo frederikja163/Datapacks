@@ -11,7 +11,7 @@ The goal of the TypeScript pipeline is that generated commands are typed: invali
 | `mcgen/` | Shared TypeScript library: datapack builder, typed text components, command helpers, version and registry models. |
 | `packs/<name>/src/` | Source of one datapack per folder. Currently `aom`, `dps`, `imsp` and `unbreakable`. |
 | `packs/<name>/build/<name>/` | Generated datapack output (gitignored). |
-| `scripts/` | `build.ts` (build packs) and `gen-models.ts` (regenerate version models). |
+| `scripts/` | `build.ts` (build packs), `deploy.ts` (copy builds into a world) and `gen-models.ts` (regenerate version models). |
 
 ## Requirements
 
@@ -24,11 +24,29 @@ bun install
 
 bun run build            # build every TypeScript pack
 bun run build dps        # build a single pack
+bun run deploy           # build and copy packs into a Minecraft world
 bun run typecheck        # tsc --noEmit
 bun run gen              # regenerate version models from misode/mcmeta
 ```
 
 Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** of that directory (not the folder) to get a valid datapack archive.
+
+## Deploying to a world
+
+`bun run deploy` builds every pack and copies the output into `<world>/datapacks/`. It reads the target from `deploy.config.json` in the repo root (gitignored — copy `deploy.config.example.json` to get started):
+
+```json
+{
+  "savesDir": "~/.minecraft/saves",
+  "world": "Datapacks"
+}
+```
+
+- `world` — the world folder name under `savesDir`, or an absolute path to a world.
+- `savesDir` — optional, defaults to `~/.minecraft/saves`.
+- `packs` — optional array to deploy only some packs (for example `["dps"]`).
+
+The deploy copies real files rather than symlinks, because Minecraft rejects symlinked datapacks. Run `/reload` in game afterwards.
 
 ## Adding a datapack
 
@@ -46,7 +64,7 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 ## Versioning
 
-Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). The release workflow only considers packs that have a version file, so this doubles as the "is this pack releasable?" switch. `aom` has no version file yet and is not released.
+Each released project has a `VERSION` file at `packs/<name>/VERSION` containing its base version as `MAJOR.MINOR` (for example `1.0`). The release workflow only considers packs that have a version file, so this doubles as the "is this pack releasable?" switch. `aom` starts at `0.1`.
 
 Releases are automatic and patch-incrementing. The workflow counts the existing git tags for the current base (`<pack>-<base>.*`) and uses that count as the patch:
 

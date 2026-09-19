@@ -51,6 +51,14 @@ export class Datapack {
             `Macro line in ${path} is missing the leading $: ${line}`,
           );
         }
+        for (const match of line.matchAll(/\$/g)) {
+          const at = match.index ?? 0;
+          if (at !== 0 && line[at + 1] !== "(") {
+            throw new Error(
+              `Unexpected $ in the middle of ${path}: ${line}`,
+            );
+          }
+        }
         return line.startsWith("$") && !line.includes("$(")
           ? line.slice(1)
           : line;

@@ -891,11 +891,11 @@ export function build(): Datapack {
     ...BUILDINGS.flatMap((type) => [
       typeCommand(
         type,
-        `$function ${summaryLoad.name} {"town":"$(town)","building":$(building)}`,
+        `function ${summaryLoad.name} {"town":"$(town)","building":$(building)}`,
       ),
       typeCommand(
         type,
-        `$function ${refOf(renderSignRefs, type.id).name} with storage aom:tmp summary`,
+        `function ${refOf(renderSignRefs, type.id).name} with storage aom:tmp summary`,
       ),
     ]),
   ]);
@@ -1025,7 +1025,7 @@ export function build(): Datapack {
     `$execute if score $(town) aom.members matches 2.. run return fail`,
     `$execute as @a[tag=aom_member_$(town)] run function ${playerDetach.name} {"town":"$(town)"}`,
     `$kill @e[type=minecraft:interaction,tag=aom_click,nbt={data:{aom:{town:"$(town)"}}}]`,
-    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townDeleteAnchor.name}`,
+    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townDeleteAnchor.name}`,
     `$scoreboard players reset $(town) aom.population`,
     `$scoreboard players reset $(town) aom.employed`,
     `$scoreboard players reset $(town) aom.members`,
@@ -1149,7 +1149,7 @@ export function build(): Datapack {
     `$scoreboard players operation #u aom.tmp = $(town) aom.population`,
     `$scoreboard players operation #u aom.tmp -= $(town) aom.employed`,
     "scoreboard players set #b aom.tmp 0",
-    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
+    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
     `$tellraw @s ${snbt([
       text("=== ", { color: "gold" }),
       text("$(town)", { color: "gold", bold: true }),
@@ -1213,7 +1213,7 @@ export function build(): Datapack {
     ])}`,
     "data modify storage aom:tmp chat.lines set value []",
     "scoreboard players set #i aom.tmp 0",
-    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townInfoBuildingLine.name}`,
+    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townInfoBuildingLine.name}`,
     tellraw("@s", [
       nbt("chat.lines", { storage: "aom:tmp" }, { interpret: true }),
       text("\n"),
@@ -1242,7 +1242,7 @@ export function build(): Datapack {
     "scoreboard players set #p aom.tmp 0",
     `$execute store result score #p aom.tmp run data get storage aom:data players.$(key).page`,
     "scoreboard players set #b aom.tmp 0",
-    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
+    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
     "scoreboard players operation #t aom.tmp = #b aom.tmp",
     "scoreboard players add #t aom.tmp 7",
     "scoreboard players operation #t aom.tmp /= 8 aom.tmp",

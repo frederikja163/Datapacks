@@ -16,6 +16,8 @@ export interface UninstallSpec {
   readonly storage?: readonly string[];
   /** Entity selectors to remove (e.g. `@e[tag=foo]`). */
   readonly kill?: readonly string[];
+  /** Player tags to remove. */
+  readonly tags?: readonly string[];
   /** Scheduled function names to clear. */
   readonly schedules?: readonly string[];
 }
@@ -44,6 +46,11 @@ export function defineUninstall(d: Datapack, spec: UninstallSpec): void {
   const kill = clean(spec.kill);
   if (kill.length) {
     sections.push(kill.map((selector) => `kill ${selector}`));
+  }
+
+  const tags = clean(spec.tags);
+  if (tags.length) {
+    sections.push(tags.map((tag) => `tag @a remove ${tag}`));
   }
 
   sections.push([

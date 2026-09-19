@@ -284,3 +284,24 @@ export function trigger(
 export function ifLoaded(pos: string, command: string): string {
   return `execute if loaded ${pos} run ${command}`;
 }
+
+export function gamerule(rule: string, value: string | number | boolean): string {
+  return `gamerule ${rule} ${value}`;
+}
+
+/** `execute store result ... run random value <range>` source command. */
+export function randomValue(range: string): string {
+  return `random value ${range}`;
+}
+
+export function teleport(target: string, pos: string): string {
+  return `tp ${target} ${pos}`;
+}
+
+export function advancementGrant(target: string, id: string): string {
+  return `advancement grant ${target} only ${id}`;
+}
+
+export function advancementRevoke(target: string, id: string): string {
+  return `advancement revoke ${target} only ${id}`;
+}

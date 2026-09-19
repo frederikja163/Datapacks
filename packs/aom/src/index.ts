@@ -5,11 +5,12 @@ import {
   castRay,
   defineUninstall,
   findAnchorAt,
+  gamerule,
   latestVersion,
   nbt,
   objectiveAdd,
+  randomValue,
   raycast,
-  recipeTake,
   scheduleFunction,
   score,
   snbt,
@@ -28,50 +29,54 @@ import {
   BUILDINGS,
   BUILD_MENU_BUILDINGS,
   CONFIRM_ACTION,
-  INDUSTRIAL_BUILDINGS,
+  RESOURCES,
   STORAGE_AMOUNTS,
   TOWNHALL_ACTIONS,
-  TOWNHOUSE_ACTIONS,
-  UNLOCKS,
+  WOODS,
   buildingResources,
   deleteAction,
+  gatedRecipes,
   generationJobs,
+  planExtras,
+  planRecipe,
+  populationAction,
+  recipeRequirements,
   storageAction,
   storageJobs,
+  unlockRecipes,
+  unlocks,
   type BuildingType,
-  type Job,
   type Resource,
 } from "./registry.ts";
 
 const MARKER_ANCHOR = anchors();
-const MARKER_TMP = "@e[type=minecraft:marker,tag=aom_tmp_pos,limit=1]";
 const SIGN_BLOCK = "#minecraft:signs";
-
+const READY_TAG = "aom_ready";
 const RAY_OBJECTIVE = "aom.players.ray";
 
-// Chat menu buttons run through the always-enabled `aom.menu` trigger so the
-// real command (action / build choice) stays out of `/trigger` completion.
-// These offsets keep those hidden values clear of the "open menu" range.
 const ACTION_CODE = 1000;
 const BUILD_CODE = 2000;
+const BUILD_PAGE_PREV = 900;
+const BUILD_PAGE_NEXT = 901;
+const BUILD_PAGE_SIZE = 8;
+
+// ---------------------------------------------------------------------------
+// Plans
+// ---------------------------------------------------------------------------
 
 interface Plan {
   readonly id: string;
-  readonly ingredients: readonly string[];
   readonly label: string;
   readonly lore: string;
+  readonly extras: readonly string[];
 }
 
-// Plans are signs, so you place the anchor exactly where you want it (floor or
-// wall). The item carries its own type in `custom_data`, so it works whether it
-// was crafted or recovered from a packed building. The townhall plan is also
-// how a town is founded: placing it outside a town starts a founding site.
-const PLAN_SIGN = "minecraft:oak_sign";
-const PLANS: readonly Plan[] = [
-  { id: "townhouse", ingredients: ["minecraft:oak_planks", "minecraft:stick"], label: "Townhouse Plan", lore: "Craft, then place a sign to build a townhouse" },
-  { id: "lumbermill", ingredients: ["minecraft:oak_log", "minecraft:stick"], label: "Lumbermill Plan", lore: "Craft, then place a sign to build a lumbermill" },
-  { id: "townhall", ingredients: ["minecraft:oak_planks", "minecraft:dirt"], label: "Townhall Plan", lore: "Place to found a town, or to rebuild a townhall" },
-];
+const PLANS: readonly Plan[] = BUILDINGS.map((type) => ({
+  id: type.id,
+  label: `${type.label} Plan`,
+  lore: `Craft, then place a sign to build a ${type.label.toLowerCase()}`,
+  extras: [...planExtras(type)],
+}));
 
 const planById = (id: string): Plan => {
   const plan = PLANS.find((entry) => entry.id === id);
@@ -85,32 +90,57 @@ const planComponents = (plan: Plan): Record<string, unknown> => ({
   "minecraft:lore": [{ text: plan.lore, color: "gray", italic: false }],
 });
 
-/** The item a building is returned as when it is deleted. */
 const planItem = (plan: Plan): string =>
   JSON.stringify({
-    id: PLAN_SIGN,
+    id: "minecraft:oak_sign",
     count: 1,
     components: planComponents(plan),
   });
 
-/** Cancelling a founding hands the Townhall Plan back. */
 const townhallPlanItem = planItem(planById("townhall"));
+const SIGN_ITEMS = WOODS.map((wood) => wood.sign);
 
-// Deletion returns the building's plan, so every building needs one.
-const planFor = (type: BuildingType): Plan => {
-  try {
-    return planById(type.id);
-  } catch {
-    throw new Error(`Building ${type.id} has no plan to return on removal`);
-  }
-};
+// ---------------------------------------------------------------------------
+// Recipe gating model
+// ---------------------------------------------------------------------------
 
-// A selector without a positional argument (distance/x/dx/...) already
-// searches every dimension, so anchors are iterated with a single unpositioned
-// selector rather than once per dimension.
-const eachAnchor = (command: string): Lines => [
-  `execute as ${MARKER_ANCHOR} at @s align xyz run ${command}`,
+const UNLOCK_INFO = unlocks();
+const RECIPE_REQ = recipeRequirements();
+const ALL_GATED = gatedRecipes();
+
+const recipeKey = (id: string): string => id.replace(/[^a-zA-Z0-9]+/g, "_");
+
+interface RecipeGroup {
+  readonly key: string;
+  readonly requires: readonly string[];
+  readonly recipes: readonly string[];
+}
+
+const groupMap = new Map<string, RecipeGroup>();
+for (const recipe of ALL_GATED) {
+  const requires = [...(RECIPE_REQ.get(recipe) ?? [])].sort();
+  const key = requires.length ? requires.map(recipeKey).join("_") : "always";
+  const group = groupMap.get(key) ?? { key, requires, recipes: [] };
+  (group.recipes as string[]).push(recipe);
+  groupMap.set(key, group);
+}
+const GROUPS = [...groupMap.values()];
+const TOWN_RECIPES = GROUPS.filter((group) => group.requires.length > 0);
+const STARTER_RECIPES = GROUPS.filter((group) => group.requires.length === 0);
+
+const JOB_IDS = [
+  ...new Set(BUILDINGS.flatMap((type) => type.jobs.map((job) => job.id))),
 ];
+const MECHANIC_IDS = [
+  ...new Set(
+    BUILDINGS.flatMap((type) =>
+      type.jobs
+        .filter((job) => job.kind === "mechanic" && job.mechanic !== "leveller")
+        .map((job) => job.id),
+    ),
+  ),
+];
+const POPULATIONS = BUILDINGS.filter((type) => type.population);
 
 const err = (target: string, message: string): string =>
   tellraw(target, [text(message, { color: "red" })]);
@@ -159,9 +189,7 @@ export function build(): Datapack {
   ]);
 
   const giveLoop = d.ref("internal/give/loop");
-  const giveOne = d.defineFunction("internal/give/one", [
-    `$give @s $(item) $(count)`,
-  ]);
+  const giveOne = d.defineFunction("internal/give/one", [`$give @s $(item) $(count)`]);
   d.defineFunction(giveLoop.path, [
     "execute if score #give aom.tmp matches ..0 run return 0",
     "scoreboard players set #chunk aom.tmp 6400",
@@ -181,14 +209,12 @@ export function build(): Datapack {
   // Shared helpers
   // -------------------------------------------------------------------------
 
-  /** Resolves a per-type function collected in a lookup map. */
   const refOf = (refs: Map<string, FunctionRef>, id: string): FunctionRef => {
     const ref = refs.get(id);
     if (!ref) throw new Error(`Missing function for ${id}`);
     return ref;
   };
 
-  /** Guard for a line that only runs for one building type. */
   const typeCommand = (type: BuildingType, command: string): string =>
     `$execute if data storage aom:data towns.$(town).buildings.$(building){type:"${type.id}"} run ${command}`;
 
@@ -197,9 +223,9 @@ export function build(): Datapack {
     command: (type: BuildingType) => string,
   ): Lines => types.map((type) => typeCommand(type, command(type)));
 
-  /** Resolves the caller's key into `aom:tmp <storage>` and calls the handler.
-   *  `extra` is emitted between the key and the call, for handlers that take
-   *  more than the key. */
+  const typeArgs = (extra = ""): string =>
+    `{"town":"$(town)","building":$(building)${extra}}`;
+
   const playerCall = (
     ref: FunctionRef,
     storage = "ctx",
@@ -217,11 +243,6 @@ export function build(): Datapack {
     `$execute store result score #w aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${jobId}`,
   ];
 
-  /** `#capacity` = the storage jobs' combined capacity for one resource. */
-  // `ui/menu/show` is defined with the other menus further down; founding and
-  // placement both open a menu through this handle.
-  const showBuildingMenu = d.ref("ui/menu/show");
-
   const capacityFor = (type: BuildingType, res: Resource): Lines => {
     const lines: Lines = ["scoreboard players set #capacity aom.tmp 0"];
     for (const job of storageJobs(type, res.id)) {
@@ -235,8 +256,20 @@ export function build(): Datapack {
     return lines;
   };
 
+  const showBuildingMenu = d.ref("ui/menu/show");
+  const syncAllRef = d.ref("jobs/unlock/sync_all");
+  const grantPlayerRef = d.ref("jobs/grant/player");
+  const discoverScanRef = d.ref("player/discover_scan");
+
+  const syncAllFor = (town: string): string =>
+    `$function ${syncAllRef.name} {"town":"${town}"}`;
+
+  const eachAnchor = (command: string): Lines => [
+    `execute as ${MARKER_ANCHOR} at @s align xyz run ${command}`,
+  ];
+
   // -------------------------------------------------------------------------
-  // Raycasts
+  // Raycast
   // -------------------------------------------------------------------------
 
   const anchorRay = raycast(d, {
@@ -246,17 +279,193 @@ export function build(): Datapack {
   });
 
   // -------------------------------------------------------------------------
-  // Player helpers
+  // Unlocks: town job counts, flags and recipe grants
   // -------------------------------------------------------------------------
 
-  const syncAllRef = d.ref("jobs/unlock/sync_all");
+  const countRefs = new Map<string, FunctionRef>();
+  for (const type of BUILDINGS) {
+    if (!type.jobs.length) continue;
+    const lines: Lines = [];
+    for (const job of type.jobs) {
+      lines.push(
+        "scoreboard players set #w aom.tmp 0",
+        `$execute store result score #w aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${job.id}`,
+        "scoreboard players set #t aom.tmp 0",
+        `$execute store result score #t aom.tmp run data get storage aom:data towns.$(town).jobs.${job.id}`,
+        "scoreboard players operation #t aom.tmp += #w aom.tmp",
+        `$execute store result storage aom:data towns.$(town).jobs.${job.id} int 1 run scoreboard players get #t aom.tmp`,
+      );
+    }
+    countRefs.set(type.id, d.defineFunction(`jobs/count/${type.id}`, lines));
+  }
+
+  const countDispatch = d.defineFunction(
+    "jobs/count/dispatch",
+    [...countRefs.entries()].map(([id, ref]) => {
+      const type = BUILDINGS.find((entry) => entry.id === id)!;
+      return typeCommand(type, `function ${ref.name} with storage aom:tmp anchor`);
+    }),
+  );
+
+  const countOne = d.defineFunction("jobs/count/one", [
+    "data remove storage aom:tmp anchor",
+    "data modify storage aom:tmp anchor set from entity @s data.aom",
+    `execute if data storage aom:tmp anchor run function ${countDispatch.name} with storage aom:tmp anchor`,
+  ]);
+
+  const count = d.defineFunction(
+    "jobs/count",
+    eachAnchor(`function ${countOne.name}`),
+  );
+
+  const zeroCounts = d.defineFunction(
+    "jobs/count/zero",
+    JOB_IDS.map(
+      (id) => `$data modify storage aom:data towns.$(town).jobs.${id} set value 0`,
+    ),
+  );
+
+  const activeLines: Lines = [];
+  for (const info of UNLOCK_INFO.values()) {
+    activeLines.push(
+      "scoreboard players set #c aom.tmp 0",
+      `$execute store result score #c aom.tmp run data get storage aom:data towns.$(town).jobs.${info.id}`,
+      `$execute if score #c aom.tmp matches ${info.required}.. run data modify storage aom:data towns.$(town).unlocks.${info.id} set value 1b`,
+      `$execute unless score #c aom.tmp matches ${info.required}.. run data remove storage aom:data towns.$(town).unlocks.${info.id}`,
+    );
+  }
+  for (const id of MECHANIC_IDS) {
+    activeLines.push(
+      "scoreboard players set #c aom.tmp 0",
+      `$execute store result score #c aom.tmp run data get storage aom:data towns.$(town).jobs.${id}`,
+      `$execute if score #c aom.tmp matches 1.. run data modify storage aom:data towns.$(town).mechanics.${id} set value 1b`,
+      `$execute unless score #c aom.tmp matches 1.. run data remove storage aom:data towns.$(town).mechanics.${id}`,
+    );
+  }
+  const computeActive = d.defineFunction("jobs/unlock/active", activeLines);
+
+  const grantSync = d.defineFunction(
+    "jobs/grant/sync",
+    GROUPS.flatMap((group) => {
+      const lines: Lines = ["scoreboard players set #ok aom.tmp 1"];
+      for (const requirement of group.requires) {
+        lines.push(
+          `$execute unless data storage aom:data towns.$(town).unlocks.${requirement} run scoreboard players set #ok aom.tmp 0`,
+        );
+      }
+      lines.push(
+        ...group.recipes.map(
+          (recipe) =>
+            `$execute if score #ok aom.tmp matches 1 unless data storage aom:data towns.$(town).granted.${group.key} as @a[tag=aom_member_$(town)] run recipe give @s ${recipe}`,
+        ),
+        `$execute if score #ok aom.tmp matches 1 run data modify storage aom:data towns.$(town).granted.${group.key} set value 1b`,
+        ...group.recipes.map(
+          (recipe) =>
+            `$execute if score #ok aom.tmp matches 0 if data storage aom:data towns.$(town).granted.${group.key} as @a[tag=aom_member_$(town)] run recipe take @s ${recipe}`,
+        ),
+        `$execute if score #ok aom.tmp matches 0 run data remove storage aom:data towns.$(town).granted.${group.key}`,
+      );
+      return lines;
+    }),
+  );
+
+  const grantPlayer = d.defineFunction(
+    "jobs/grant/player",
+    GROUPS.flatMap((group) => {
+      const lines: Lines = ["scoreboard players set #ok aom.tmp 1"];
+      for (const requirement of group.requires) {
+        lines.push(
+          `$execute unless data storage aom:data towns.$(town).unlocks.${requirement} run scoreboard players set #ok aom.tmp 0`,
+        );
+      }
+      lines.push(
+        ...group.recipes.map(
+          (recipe) =>
+            `$execute if score #ok aom.tmp matches 1 run recipe give @s ${recipe}`,
+        ),
+      );
+      return lines;
+    }),
+  );
 
   const clearUnlocks = d.defineFunction(
     "player/clear_unlocks",
-    UNLOCKS.flatMap((unlock) =>
-      unlock.recipes.map((recipe) => recipeTake("@s", recipe)),
+    TOWN_RECIPES.flatMap((group) =>
+      group.recipes.map((recipe) => `recipe take @s ${recipe}`),
     ),
   );
+
+  const starter = d.defineFunction("player/starter", [
+    `$function ${d.ref("player/starter/grant").name} {"placeholder":0}`,
+    `tag @s add ${READY_TAG}`,
+  ]);
+  d.defineFunction(
+    "player/starter/grant",
+    STARTER_RECIPES.flatMap((group) =>
+      group.recipes.map((recipe) => `recipe give @s ${recipe}`),
+    ),
+  );
+
+  const syncAll = d.defineFunction("jobs/unlock/sync_all", [
+    `$function ${zeroCounts.name} {"town":"$(town)"}`,
+    `function ${count.name}`,
+    `$function ${computeActive.name} {"town":"$(town)"}`,
+    `$function ${grantSync.name} {"town":"$(town)"}`,
+  ]);
+
+  // -------------------------------------------------------------------------
+  // Discovery
+  // -------------------------------------------------------------------------
+
+  const resolveDiscovery = d.defineFunction("jobs/discover/resolve", [
+    "data remove storage aom:tmp disc2",
+    `$data modify storage aom:tmp disc2.town set from storage aom:data players.$(key).town`,
+    `$data modify storage aom:tmp disc2.key set value "$(key)"`,
+    `$data modify storage aom:tmp disc2.resource set value "$(resource)"`,
+    `execute if data storage aom:tmp disc2.town run function ${d.ref("jobs/discover/apply").name} with storage aom:tmp disc2`,
+  ]);
+
+  const applyDiscovery = d.defineFunction("jobs/discover/apply", [
+    `$execute if data storage aom:data towns.$(town).discovered.$(resource) run return 0`,
+    `$data modify storage aom:data towns.$(town).discovered.$(resource) set value 1b`,
+    `$tellraw @a[tag=aom_member_$(town)] ${snbt([
+      text("Discovered ", { color: "green" }),
+      text("$(resource)", { color: "aqua" }),
+      text("; its storage can now be hired.", { color: "green" }),
+    ])}`,
+  ]);
+
+  for (const res of RESOURCES) {
+    d.advancement(`discover/${res.id}`, {
+      criteria: {
+        has: {
+          trigger: "minecraft:inventory_changed",
+          conditions: { items: [{ items: res.item }] },
+        },
+      },
+      rewards: { function: d.ref(`jobs/discover/${res.id}/run`).name },
+    });
+    d.defineFunction(`jobs/discover/${res.id}/run`, [
+      `function ${playerKey.name}`,
+      "data remove storage aom:tmp disc",
+      "data modify storage aom:tmp disc.key set from storage aom:tmp player_key",
+      `data modify storage aom:tmp disc.resource set value "${res.id}"`,
+      `function ${resolveDiscovery.name} with storage aom:tmp disc`,
+    ]);
+  }
+
+  const discoverScan = d.defineFunction(
+    "player/discover_scan",
+    RESOURCES.flatMap((res) => [
+      "scoreboard players set #held aom.tmp 0",
+      `execute store result score #held aom.tmp run clear @s ${res.item} 0`,
+      `$execute if score #held aom.tmp matches 1.. run data modify storage aom:data towns.$(town).discovered.${res.id} set value 1b`,
+    ]),
+  );
+
+  // -------------------------------------------------------------------------
+  // Player helpers
+  // -------------------------------------------------------------------------
 
   const playerDetachExec = d.defineFunction("player/detach/exec", [
     `$data remove storage aom:data players.$(key).town`,
@@ -278,11 +487,14 @@ export function build(): Datapack {
     `$execute unless data storage aom:data towns.$(town) run return 0`,
     `$tag @s add aom_member_$(town)`,
     `$function ${syncAllRef.name} {"town":"$(town)"}`,
+    `function ${grantPlayer.name} with storage aom:tmp join`,
+    `function ${discoverScan.name} with storage aom:tmp join`,
   ]);
 
   const playerJoinDispatch = d.defineFunction("player/join/dispatch", [
     `$execute unless data storage aom:data players.$(key).town run return 0`,
     `$data modify storage aom:tmp join.town set from storage aom:data players.$(key).town`,
+    `data modify storage aom:tmp join.key set from storage aom:tmp player_key`,
     `function ${playerJoinSync.name} with storage aom:tmp join`,
   ]);
 
@@ -292,65 +504,10 @@ export function build(): Datapack {
   ]);
 
   // -------------------------------------------------------------------------
-  // Unlocks
+  // Hiring
   // -------------------------------------------------------------------------
 
-  const unlockSyncRefs: FunctionRef[] = [];
-  for (const unlock of UNLOCKS) {
-    const checks = BUILDINGS.flatMap((type) => {
-      const job = type.jobs.find((entry) => entry.unlock === unlock.id);
-      if (!job) return [];
-      return [{
-        type,
-        ref: d.defineFunction(`jobs/unlock/${unlock.id}/check/${type.id}`, [
-          "scoreboard players set #u aom.tmp 0",
-          `$execute store result score #u aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${job.id}`,
-          "execute if score #u aom.tmp matches 1.. run scoreboard players set #active aom.tmp 1",
-        ]),
-      }];
-    });
-
-    const checkDispatch = d.defineFunction(
-      `jobs/unlock/${unlock.id}/check/dispatch`,
-      checks.map(({ type, ref }) =>
-        typeCommand(
-          type,
-          `function ${ref.name} {"town":"$(town)","building":$(building)}`,
-        ),
-      ),
-    );
-
-    const check = d.defineFunction(`jobs/unlock/${unlock.id}/check`, [
-      "data remove storage aom:tmp unlock",
-      "data modify storage aom:tmp unlock set from entity @s data.aom",
-      `execute if data storage aom:tmp unlock run function ${checkDispatch.name} with storage aom:tmp unlock`,
-    ]);
-
-    unlockSyncRefs.push(d.defineFunction(`jobs/unlock/${unlock.id}/sync`, [
-      "scoreboard players set #active aom.tmp 0",
-      `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] run function ${check.name}`,
-      ...unlock.recipes.map(
-        (recipe) =>
-          `$execute if score #active aom.tmp matches 1.. as @a[tag=aom_member_$(town)] run recipe give @s ${recipe}`,
-      ),
-      ...unlock.recipes.map(
-        (recipe) =>
-          `$execute if score #active aom.tmp matches 0 as @a[tag=aom_member_$(town)] run recipe take @s ${recipe}`,
-      ),
-    ]));
-  }
-
-  d.defineFunction(syncAllRef.path, [
-    ...unlockSyncRefs.map(
-      (ref) => `$function ${ref.name} {"town":"$(town)"}`,
-    ),
-  ]);
-
-  // -------------------------------------------------------------------------
-  // Hiring and firing
-  // -------------------------------------------------------------------------
-
-  const unemployedGuardMacro: Lines = [
+  const unemployedGuard: Lines = [
     "$scoreboard players operation #u aom.tmp = $(town) aom.population",
     "$scoreboard players operation #u aom.tmp -= $(town) aom.employed",
     `execute if score #u aom.tmp matches ..0 run ${err("@s", "You have no unemployed villagers.")}`,
@@ -358,32 +515,72 @@ export function build(): Datapack {
   ];
 
   const hireRefs = new Map<string, FunctionRef>();
-  for (const type of INDUSTRIAL_BUILDINGS) {
+  for (const type of BUILDINGS) {
     for (const job of type.jobs) {
-      const readJobScore = jobScore(job.id);
-      const hireSpecific: Lines =
-        job.kind === "unlock"
-          ? [
-              ...readJobScore,
-              `execute if score #w aom.tmp matches 1.. run ${err("@s", "This job is already staffed.")}`,
-              "execute if score #w aom.tmp matches 1.. run return fail",
-              `$data modify storage aom:data towns.$(town).buildings.$(building).jobs.${job.id} set value 1`,
-              `$scoreboard players add $(town) aom.employed 1`,
-              `$function ${syncAllRef.name} {"town":"$(town)"}`,
-            ]
-          : [
-              ...readJobScore,
-              "scoreboard players add #w aom.tmp 1",
-              `$execute store result storage aom:data towns.$(town).buildings.$(building).jobs.${job.id} int 1 run scoreboard players get #w aom.tmp`,
-              `$scoreboard players add $(town) aom.employed 1`,
-            ];
+      const lines: Lines = [...unemployedGuard];
+
+      if (job.kind === "unlock") {
+        const required = job.required ?? 1;
+        lines.push(
+          ...jobScore(job.id),
+          `execute if score #w aom.tmp matches ${required}.. run ${err("@s", "This job is already staffed.")}`,
+          `execute if score #w aom.tmp matches ${required}.. run return fail`,
+          "scoreboard players add #w aom.tmp 1",
+          `$execute store result storage aom:data towns.$(town).buildings.$(building).jobs.${job.id} int 1 run scoreboard players get #w aom.tmp`,
+          `$scoreboard players add $(town) aom.employed 1`,
+          `$function ${syncAllRef.name} {"town":"$(town)"}`,
+        );
+      } else if (job.kind === "mechanic") {
+        if (job.mechanic === "portal") {
+          lines.push(
+            ...jobScore(job.id),
+            `execute if score #w aom.tmp matches 1.. run ${err("@s", "This job is already staffed.")}`,
+            "execute if score #w aom.tmp matches 1.. run return fail",
+          );
+        }
+        lines.push(
+          "scoreboard players set #w aom.tmp 0",
+          `$execute store result score #w aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${job.id}`,
+          "scoreboard players add #w aom.tmp 1",
+          `$execute store result storage aom:data towns.$(town).buildings.$(building).jobs.${job.id} int 1 run scoreboard players get #w aom.tmp`,
+          `$scoreboard players add $(town) aom.employed 1`,
+          "scoreboard players set #t aom.tmp 0",
+          `$execute store result score #t aom.tmp run data get storage aom:data towns.$(town).jobs.${job.id}`,
+          "scoreboard players add #t aom.tmp 1",
+          `$execute store result storage aom:data towns.$(town).jobs.${job.id} int 1 run scoreboard players get #t aom.tmp`,
+          `$function ${syncAllRef.name} {"town":"$(town)"}`,
+        );
+      } else {
+        if (job.resource) {
+          lines.push(
+            `$execute unless data storage aom:data towns.$(town).discovered.${job.resource} run ${err("@s", "You have not discovered this resource yet.")}`,
+            `$execute unless data storage aom:data towns.$(town).discovered.${job.resource} run return fail`,
+          );
+        }
+        if (job.table) {
+          const known = job.table.filter((entry) => entry.resource);
+          lines.push("scoreboard players set #disc aom.tmp 0");
+          for (const entry of known) {
+            lines.push(
+              `$execute if data storage aom:data towns.$(town).discovered.${entry.resource} run scoreboard players set #disc aom.tmp 1`,
+            );
+          }
+          lines.push(
+            `execute if score #disc aom.tmp matches 0 run ${err("@s", "You have not discovered any of these resources yet.")}`,
+            "execute if score #disc aom.tmp matches 0 run return fail",
+          );
+        }
+        lines.push(
+          ...jobScore(job.id),
+          "scoreboard players add #w aom.tmp 1",
+          `$execute store result storage aom:data towns.$(town).buildings.$(building).jobs.${job.id} int 1 run scoreboard players get #w aom.tmp`,
+          `$scoreboard players add $(town) aom.employed 1`,
+        );
+      }
 
       hireRefs.set(
         `${type.id}/${job.id}`,
-        d.defineFunction(
-          `jobs/hire/${type.id}/${job.id}`,
-          [...unemployedGuardMacro, ...hireSpecific],
-        ),
+        d.defineFunction(`jobs/hire/${type.id}/${job.id}`, lines),
       );
     }
   }
@@ -392,56 +589,131 @@ export function build(): Datapack {
   // Generation
   // -------------------------------------------------------------------------
 
-  const generationRefs = new Map<string, FunctionRef>();
-  for (const type of INDUSTRIAL_BUILDINGS) {
-    const lines: Lines = [];
-    for (const res of buildingResources(type)) {
-      const generators = generationJobs(type, res.id);
-      if (generators.length === 0) continue;
-      lines.push(
+  const intervalMatches = (interval: number): string | null => {
+    if (interval <= 1) return null;
+    const values: number[] = [];
+    for (let value = 0; value < 20; value += interval) values.push(value);
+    return values.join(",");
+  };
+
+  const generatingRefs = new Map<string, FunctionRef>();
+  const generateRefs = new Map<string, FunctionRef>();
+  for (const type of BUILDINGS) {
+    const resources = buildingResources(type);
+    if (!resources.length) continue;
+
+    const main: Lines = [];
+
+    for (const job of type.jobs) {
+      if (job.kind !== "generation") continue;
+
+      if (job.table) {
+        const giveRefs = new Map<string, FunctionRef>();
+        for (const entry of job.table) {
+          if (!entry.resource) continue;
+          const res = resources.find((candidate) => candidate.id === entry.resource);
+          if (!res) continue;
+          giveRefs.set(
+            res.id,
+            d.defineFunction(`jobs/generate/${type.id}/${job.id}/give/${res.id}`, [
+              ...capacityFor(type, res),
+              `$execute unless data storage aom:data towns.$(town).buildings.$(building).storage.${res.id} run data modify storage aom:data towns.$(town).buildings.$(building).storage.${res.id} set value 0`,
+              "scoreboard players set #stored aom.tmp 0",
+              `$execute store result score #stored aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).storage.${res.id}`,
+              "execute if score #stored aom.tmp < #capacity aom.tmp run scoreboard players add #stored aom.tmp 1",
+              `$execute if data storage aom:data towns.$(town).discovered.${res.id} store result storage aom:data towns.$(town).buildings.$(building).storage.${res.id} int 1 run scoreboard players get #stored aom.tmp`,
+            ]),
+          );
+        }
+
+        const total = job.table.reduce((sum, entry) => sum + entry.weight, 0);
+        let low = 1;
+        const ranges: Lines = [];
+        for (const entry of job.table) {
+          const high = low + entry.weight - 1;
+          if (entry.resource && giveRefs.has(entry.resource)) {
+            ranges.push(
+              `$execute if score #roll aom.tmp matches ${low}..${high} run function ${refOf(giveRefs, entry.resource).name} ${typeArgs()}`,
+            );
+          }
+          low = high + 1;
+        }
+
+        const rollRef = d.defineFunction(`jobs/generate/${type.id}/${job.id}/roll`, [
+          "execute if score #left aom.tmp matches ..0 run return 0",
+          "scoreboard players remove #left aom.tmp 1",
+          `execute store result score #roll aom.tmp run ${randomValue(`1..${total}`)}`,
+          ...ranges,
+          `$function ${d.ref(`jobs/generate/${type.id}/${job.id}/roll`).name} ${typeArgs()}`,
+        ]);
+
+        const startRef = d.defineFunction(`jobs/generate/${type.id}/${job.id}/start`, [
+          "scoreboard players set #left aom.tmp 0",
+          `$execute store result score #left aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${job.id}`,
+          `$function ${rollRef.name} ${typeArgs()}`,
+        ]);
+
+        const match = intervalMatches(job.interval ?? 1);
+        main.push(
+          match
+            ? `$execute if score #min aom.tmp matches ${match} run function ${startRef.name} ${typeArgs()}`
+            : `$function ${startRef.name} ${typeArgs()}`,
+        );
+        generatingRefs.set(`${type.id}/${job.id}`, startRef);
+        continue;
+      }
+
+      if (!job.resource) continue;
+      const res = resources.find((candidate) => candidate.id === job.resource);
+      if (!res) continue;
+
+      const ref = d.defineFunction(`jobs/generate/${type.id}/${job.id}`, [
         "scoreboard players set #workers aom.tmp 0",
-        ...generators.flatMap((job) => [
-          "scoreboard players set #gen aom.tmp 0",
-          `$execute store result score #gen aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${job.id}`,
-          `scoreboard players operation #workers aom.tmp += #gen aom.tmp`,
-        ]),
+        `$execute store result score #workers aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).jobs.${job.id}`,
         ...capacityFor(type, res),
-      );
-      lines.push(
+        `$execute unless data storage aom:data towns.$(town).buildings.$(building).storage.${res.id} run data modify storage aom:data towns.$(town).buildings.$(building).storage.${res.id} set value 0`,
         "scoreboard players set #stored aom.tmp 0",
         `$execute store result score #stored aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).storage.${res.id}`,
         "scoreboard players operation #new aom.tmp = #stored aom.tmp",
         "scoreboard players operation #new aom.tmp += #workers aom.tmp",
         "execute if score #new aom.tmp > #capacity aom.tmp run scoreboard players operation #new aom.tmp = #capacity aom.tmp",
-        `$execute if score #workers aom.tmp matches 1.. store result storage aom:data towns.$(town).buildings.$(building).storage.${res.id} int 1 run scoreboard players get #new aom.tmp`,
+        `$execute if score #workers aom.tmp matches 1.. if data storage aom:data towns.$(town).discovered.${res.id} store result storage aom:data towns.$(town).buildings.$(building).storage.${res.id} int 1 run scoreboard players get #new aom.tmp`,
+      ]);
+      generatingRefs.set(`${type.id}/${job.id}`, ref);
+
+      const match = intervalMatches(job.interval ?? 1);
+      main.push(
+        match
+          ? `$execute if score #min aom.tmp matches ${match} run function ${ref.name} ${typeArgs()}`
+          : `$function ${ref.name} ${typeArgs()}`,
       );
     }
-    if (lines.length) {
-      generationRefs.set(
-        type.id,
-        d.defineFunction(`jobs/generate/${type.id}`, lines),
-      );
-    }
+
+    generateRefs.set(
+      type.id,
+      d.defineFunction(`jobs/generate/${type.id}`, main),
+    );
   }
 
   const generateDispatch = d.defineFunction(
     "jobs/generate/dispatch",
-    INDUSTRIAL_BUILDINGS.flatMap((type) => {
-      const ref = generationRefs.get(type.id);
+    BUILDINGS.flatMap((type) => {
+      const ref = generateRefs.get(type.id);
       if (!ref) return [];
-      return [
-        typeCommand(
-          type,
-          `function ${ref.name} {"town":"$(town)","building":$(building)}`,
-        ),
-      ];
+      return [typeCommand(type, `function ${ref.name} with storage aom:tmp anchor`)];
     }),
   );
 
-  const jobsGenerate = d.defineFunction("jobs/generate", [
+  const generateOne = d.defineFunction("jobs/generate/one", [
     "data remove storage aom:tmp anchor",
     "data modify storage aom:tmp anchor set from entity @s data.aom",
     `execute if data storage aom:tmp anchor run function ${generateDispatch.name} with storage aom:tmp anchor`,
+  ]);
+
+  const minute = d.defineFunction("minute", [
+    "scoreboard players add #min aom.tmp 1",
+    "execute if score #min aom.tmp matches 20.. run scoreboard players set #min aom.tmp 0",
+    ...eachAnchor(`function ${generateOne.name}`),
   ]);
 
   // -------------------------------------------------------------------------
@@ -450,12 +722,14 @@ export function build(): Datapack {
 
   const depositRefs = new Map<string, FunctionRef>();
   const withdrawRefs = new Map<string, FunctionRef>();
-  for (const type of INDUSTRIAL_BUILDINGS) {
+  for (const type of BUILDINGS) {
     for (const res of buildingResources(type)) {
       depositRefs.set(
         `${type.id}/${res.id}`,
         d.defineFunction(`storage/deposit/${type.id}/${res.id}`, [
           `$execute unless data storage aom:data towns.$(town).buildings.$(building) run return fail`,
+          `$execute unless data storage aom:data towns.$(town).discovered.${res.id} run ${err("@s", "You have not discovered this resource yet.")}`,
+          `$execute unless data storage aom:data towns.$(town).discovered.${res.id} run return fail`,
           `$execute unless data storage aom:data towns.$(town).buildings.$(building).storage.${res.id} run data modify storage aom:data towns.$(town).buildings.$(building).storage.${res.id} set value 0`,
           ...capacityFor(type, res),
           "scoreboard players set #stored aom.tmp 0",
@@ -500,11 +774,12 @@ export function build(): Datapack {
   }
 
   // -------------------------------------------------------------------------
-  // Building summaries (shared by sign, book and chat rendering)
+  // Building summaries (shared by sign, chat and menus)
   // -------------------------------------------------------------------------
 
   const summaryRefs = new Map<string, FunctionRef>();
-  for (const type of INDUSTRIAL_BUILDINGS) {
+  for (const type of BUILDINGS) {
+    if (type.townhall) continue;
     const lines: Lines = [];
     lines.push("scoreboard players set #employed aom.tmp 0");
     for (const job of type.jobs) {
@@ -526,6 +801,14 @@ export function build(): Datapack {
         `data modify storage aom:tmp summary.capacity_${res.id} set value 0`,
         ...capacityFor(type, res),
         `execute store result storage aom:tmp summary.capacity_${res.id} int 1 run scoreboard players get #capacity aom.tmp`,
+        `data modify storage aom:tmp summary.discovered_${res.id} set value "locked"`,
+        `$execute if data storage aom:data towns.$(town).discovered.${res.id} run data modify storage aom:tmp summary.discovered_${res.id} set value "open"`,
+      );
+    }
+    if (type.population) {
+      lines.push(
+        `data modify storage aom:tmp summary.villagers set value 0`,
+        `$execute store result storage aom:tmp summary.villagers int 1 run data get storage aom:data towns.$(town).buildings.$(building).villagers`,
       );
     }
     summaryRefs.set(type.id, d.defineFunction(`ui/summary/load/${type.id}`, lines));
@@ -538,14 +821,6 @@ export function build(): Datapack {
       `$execute store result storage aom:tmp summary.population int 1 run scoreboard players get $(town) aom.population`,
       `data modify storage aom:tmp summary.members set value 0`,
       `$execute store result storage aom:tmp summary.members int 1 run scoreboard players get $(town) aom.members`,
-    ]),
-  );
-
-  summaryRefs.set(
-    "townhouse",
-    d.defineFunction("ui/summary/load/townhouse", [
-      `data modify storage aom:tmp summary.villagers set value 0`,
-      `$execute store result storage aom:tmp summary.villagers int 1 run data get storage aom:data towns.$(town).buildings.$(building).villagers`,
     ]),
   );
 
@@ -576,23 +851,32 @@ export function build(): Datapack {
       ])}`,
     ]),
   );
-  renderSignRefs.set(
-    "townhouse",
-    d.defineFunction("ui/render_sign/townhouse", [
-      `$data modify block ~ ~ ~ front_text.messages set value ${snbt([
-        text("Townhouse", { color: "gold", bold: true }),
-        text("Villagers: $(villagers)", { color: "white" }),
-        text("", { color: "gray" }),
-        text("$(town)", { color: "green" }),
-      ])}`,
-    ]),
-  );
 
-  for (const type of INDUSTRIAL_BUILDINGS) {
-    const lines = [
+  for (const type of BUILDINGS) {
+    if (type.townhall) continue;
+    if (type.population) {
+      renderSignRefs.set(
+        type.id,
+        d.defineFunction(`ui/render_sign/${type.id}`, [
+          `$data modify block ~ ~ ~ front_text.messages set value ${snbt([
+            text(type.label, { color: "gold", bold: true }),
+            text("Villagers: $(villagers)", { color: "white" }),
+            text("Workers: $(employed)", { color: "aqua" }),
+            text("$(town)", { color: "green" }),
+          ])}`,
+        ]),
+      );
+      continue;
+    }
+    const firstJob = type.jobs.find((job) => job.kind === "generation");
+    const firstRes = buildingResources(type)[0];
+    const lines: TextComponent[] = [
       text(type.label, { color: "gold", bold: true }),
-      text("Workers: $(employed)", { color: "white" }),
-      text("", { color: "gray" }),
+      text(firstJob ? `$(workers_${firstJob.id})` : "", { color: "white" }),
+      text(
+        firstRes ? `$(stored_${firstRes.id})/$(capacity_${firstRes.id})` : "",
+        { color: "yellow" },
+      ),
       text("$(town)", { color: "green" }),
     ];
     renderSignRefs.set(
@@ -607,16 +891,15 @@ export function build(): Datapack {
     ...BUILDINGS.flatMap((type) => [
       typeCommand(
         type,
-        `function ${summaryLoad.name} {"town":"$(town)","building":$(building)}`,
+        `$function ${summaryLoad.name} {"town":"$(town)","building":$(building)}`,
       ),
       typeCommand(
         type,
-        `function ${refOf(renderSignRefs, type.id).name} with storage aom:tmp summary`,
+        `$function ${refOf(renderSignRefs, type.id).name} with storage aom:tmp summary`,
       ),
     ]),
   ]);
 
-  // Older anchors predate the stored type; stamp it on so menus can dispatch.
   const renderSignsType = d.defineFunction("ui/render_signs/type", [
     `$data modify entity @s data.aom.type set from storage aom:data towns.$(town).buildings.$(building).type`,
   ]);
@@ -624,11 +907,7 @@ export function build(): Datapack {
   const renderSignsAnchor = d.defineFunction("ui/render_signs/anchor", [
     "data remove storage aom:tmp anchor",
     "data modify storage aom:tmp anchor set from entity @s data.aom",
-    // Only touch signs: an anchor on a non-sign block must not clobber it.
     "execute unless block ~ ~ ~ " + SIGN_BLOCK + " run return fail",
-    // Flip the glow flag both ways so the block entity is always marked
-    // changed and clients are sent a fresh block-entity update even when the
-    // text itself is unchanged.
     "data modify block ~ ~ ~ front_text.has_glowing_text set value true",
     "data modify block ~ ~ ~ front_text.has_glowing_text set value false",
     `execute if data storage aom:tmp anchor unless data entity @s data.aom.type run function ${renderSignsType.name} with storage aom:tmp anchor`,
@@ -647,13 +926,19 @@ export function build(): Datapack {
   const chatLineRefs = new Map<string, FunctionRef>();
   for (const type of BUILDINGS) {
     let parts: TextComponent[];
-    if (type.category === "townhouse") {
+    if (type.townhall) {
+      parts = [
+        text(`\n${type.label} #$(building)`, { color: "white" }),
+        text(" · Population ", { color: "gray" }),
+        text("$(population)", { color: "aqua" }),
+      ];
+    } else if (type.population && !type.jobs.length) {
       parts = [
         text(`\n${type.label} #$(building)`, { color: "white" }),
         text(" · Villagers ", { color: "gray" }),
         text("$(villagers)", { color: "aqua" }),
       ];
-    } else if (type.category === "industrial") {
+    } else {
       parts = [
         text(`\n${type.label} #$(building)`, { color: "white" }),
         ...type.jobs.flatMap((job) => [
@@ -665,8 +950,6 @@ export function build(): Datapack {
           text(`$(stored_${res.id})/$(capacity_${res.id})`, { color: "aqua" }),
         ]),
       ];
-    } else {
-      parts = [text(`\n${type.label} #$(building)`, { color: "white" })];
     }
     chatLineRefs.set(
       type.id,
@@ -676,11 +959,14 @@ export function build(): Datapack {
     );
   }
 
-  const chatPageAppend = d.defineFunction("ui/chat_page/append", typeDispatch(
-    BUILDINGS,
-    (type) =>
-      `function ${refOf(chatLineRefs, type.id).name} with storage aom:tmp summary`,
-  ));
+  const chatPageAppend = d.defineFunction(
+    "ui/chat_page/append",
+    typeDispatch(
+      BUILDINGS,
+      (type) =>
+        `function ${refOf(chatLineRefs, type.id).name} with storage aom:tmp summary`,
+    ),
+  );
 
   const chatPageAppendLoad = d.defineFunction("ui/chat_page/append/load", [
     `function ${summaryLoad.name} with storage aom:tmp anchor`,
@@ -700,12 +986,7 @@ export function build(): Datapack {
   const confirmPrompt = d.defineFunction("ui/confirm/prompt", [
     tellraw("@s", [
       text("Are you sure? This cannot be undone.\n", { color: "red" }),
-      menuButton(
-        "Yes",
-        `trigger aom.menu set ${ACTION_CODE}`,
-        "Confirm",
-        "red",
-      ),
+      menuButton("Yes", `trigger aom.menu set ${ACTION_CODE}`, "Confirm", "red"),
       " ",
       text("[Cancel]", {
         color: "gray",
@@ -744,7 +1025,7 @@ export function build(): Datapack {
     `$execute if score $(town) aom.members matches 2.. run return fail`,
     `$execute as @a[tag=aom_member_$(town)] run function ${playerDetach.name} {"town":"$(town)"}`,
     `$kill @e[type=minecraft:interaction,tag=aom_click,nbt={data:{aom:{town:"$(town)"}}}]`,
-    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townDeleteAnchor.name}`,
+    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townDeleteAnchor.name}`,
     `$scoreboard players reset $(town) aom.population`,
     `$scoreboard players reset $(town) aom.employed`,
     `$scoreboard players reset $(town) aom.members`,
@@ -797,6 +1078,8 @@ export function build(): Datapack {
     `$scoreboard players add $(town) aom.members 1`,
     `$tag @s add aom_member_$(town)`,
     `$function ${syncAllRef.name} {"town":"$(town)"}`,
+    `$function ${grantPlayerRef.name} {"town":"$(town)","key":"$(key)"}`,
+    `$function ${discoverScanRef.name} {"town":"$(town)","key":"$(key)"}`,
     `$tellraw @a ${snbt([{ selector: "@s", color: "gray" }, text(" joined ", { color: "gray" }), text("$(town)", { color: "aqua" }), text(".", { color: "gray" })])}`,
   ]);
 
@@ -813,7 +1096,6 @@ export function build(): Datapack {
   const townVillager = d.defineFunction("town/villager", [
     `$execute unless data storage aom:data players.$(key){town:"$(town)"} run tellraw @s ${snbt([text("You are not a member of this town.", { color: "red" })])}`,
     `$execute unless data storage aom:data players.$(key){town:"$(town)"} run return fail`,
-    `$execute unless data storage aom:data towns.$(town).buildings.$(building){type:"townhouse"} run return fail`,
     `$execute unless data storage aom:data towns.$(town).buildings.$(building).villagers run data modify storage aom:data towns.$(town).buildings.$(building).villagers set value 1`,
     "scoreboard players set #old aom.tmp 0",
     `$execute store result score #old aom.tmp run data get storage aom:data towns.$(town).buildings.$(building).villagers`,
@@ -827,68 +1109,23 @@ export function build(): Datapack {
     `$execute store result storage aom:data towns.$(town).buildings.$(building).villagers int 1 run scoreboard players get #new aom.tmp`,
     `$execute as ${anchorOf({ town: "$(town)", building: "$(building)" })} at @s run function ${renderSignsDispatch.name} {"town":"$(town)","building":$(building)}`,
     `$tellraw @s ${snbt([
-      text("Villagers from this townhouse: ", { color: "yellow" }),
-      nbt("towns.$(town).buildings.$(building).villagers", {
-        storage: "aom:data",
-      }, { color: "aqua" }),
+      text("Villagers from this building: ", { color: "yellow" }),
+      nbt("towns.$(town).buildings.$(building).villagers", { storage: "aom:data" }, { color: "aqua" }),
     ])}`,
-  ]);
-
-  // Validates the town name and creates the town on the sign the caller faces.
-  const townCreateValidate = d.defineFunction("town/create/validate", [
-    "data remove storage aom:tmp check",
-    "data modify storage aom:tmp check set value {}",
-    `$data modify storage aom:tmp check."$(name)" set value 1`,
-    `$execute store success score #valid aom.tmp run data get storage aom:tmp check.$(name)`,
-    "data remove storage aom:tmp check",
-    `execute if score #valid aom.tmp matches 0 run tellraw @s ${snbt([text("Town names may only contain letters, numbers and underscores.", { color: "red" })])}`,
-    "execute if score #valid aom.tmp matches 0 run return fail",
-    `$execute if data storage aom:data towns.$(name) run tellraw @s ${snbt([text("A town named ", { color: "red" }), text("$(name)", { color: "aqua" }), text(" already exists.", { color: "red" })])}`,
-    `$execute if data storage aom:data towns.$(name) run return fail`,
-    `$data modify storage aom:data towns.$(name) set value {members:{}}`,
-    `$data modify storage aom:data towns.$(name).buildings.1 set value {type:"townhall"}`,
-    `$scoreboard players set $(name) aom.population 0`,
-    `$scoreboard players set $(name) aom.employed 0`,
-    `$scoreboard players set $(name) aom.members 0`,
-    `$scoreboard players set $(name) aom.build_acc 2`,
-    // Align first: `positioned` may be fractional, so `~.5` would drift.
-    `$execute align xyz run ${summonAnchor("~.5 ~.5 ~.5", { town: "$(name)", building: 1, type: "townhall" })}`,
-    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(name)",building:1}}}] at @s align xyz run summon minecraft:interaction ~.5 ~ ~.5 {Tags:["aom_click"],width:1.0f,height:1.0f,response:0b,data:{aom:{town:"$(name)",building:1,type:"townhall"}}}`,
-    "execute align xyz run " + waxSign("~ ~ ~"),
-    // The founder joins immediately.
-    `$data modify storage aom:data towns.$(name).members.$(key) set value {}`,
-    `$data modify storage aom:data players.$(key).town set value "$(name)"`,
-    `$scoreboard players add $(name) aom.members 1`,
-    `$tag @s add aom_member_$(name)`,
-    `$function ${syncAllRef.name} {"town":"$(name)"}`,
-    `$function ${renderSignsDispatch.name} {"town":"$(name)","building":1}`,
-    `$tellraw @a ${snbt([{ selector: "@s", color: "green" }, text(" founded the town of ", { color: "green" }), text("$(name)", { color: "aqua" }), text("!", { color: "green" })])}`,
-    // Open the townhall menu, with the new town hall armed for its buttons.
-    `$data modify storage aom:tmp anchor set value {town:"$(name)",building:1,type:"townhall"}`,
-    `$function ${showBuildingMenu.name}`,
   ]);
 
   // -------------------------------------------------------------------------
   // Town info (chat pages)
   // -------------------------------------------------------------------------
 
-  // Navigation differs by entry point: the standalone `/trigger aom.town_info`
-  // pages use that trigger, while the townhall menu's pages reuse the menu bus
-  // and re-render the menu. `aom:tmp chat.nav` selects which.
   const infoNavPrev = text("[<] ", {
     color: "green",
-    click_event: {
-      action: "run_command",
-      command: "/trigger aom.town_info set 2",
-    },
+    click_event: { action: "run_command", command: "/trigger aom.town_info set 2" },
     hover_event: { action: "show_text", value: "Previous page" },
   });
   const infoNavNext = text("[>]", {
     color: "green",
-    click_event: {
-      action: "run_command",
-      command: "/trigger aom.town_info set 3",
-    },
+    click_event: { action: "run_command", command: "/trigger aom.town_info set 3" },
     hover_event: { action: "show_text", value: "Next page" },
   });
   const menuNavPrev = text("[<] ", {
@@ -912,7 +1149,7 @@ export function build(): Datapack {
     `$scoreboard players operation #u aom.tmp = $(town) aom.population`,
     `$scoreboard players operation #u aom.tmp -= $(town) aom.employed`,
     "scoreboard players set #b aom.tmp 0",
-    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
+    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
     `$tellraw @s ${snbt([
       text("=== ", { color: "gold" }),
       text("$(town)", { color: "gold", bold: true }),
@@ -932,10 +1169,8 @@ export function build(): Datapack {
 
   const townInfoNav = d.defineFunction("town/info/nav", [
     "data modify storage aom:tmp chat.nav set value []",
-    // Standalone info pages navigate through `aom.town_info`.
     `execute unless data storage aom:tmp chat{nav:"menu"} if score #p aom.tmp matches 2.. run data modify storage aom:tmp chat.nav append value ${snbt(infoNavPrev)}`,
     `execute unless data storage aom:tmp chat{nav:"menu"} unless score #p aom.tmp >= #t aom.tmp run data modify storage aom:tmp chat.nav append value ${snbt(infoNavNext)}`,
-    // The townhall menu's pages navigate through the menu bus, re-rendering it.
     `execute if data storage aom:tmp chat{nav:"menu"} if score #p aom.tmp matches 2.. run data modify storage aom:tmp chat.nav append value ${snbt(menuNavPrev)}`,
     `execute if data storage aom:tmp chat{nav:"menu"} unless score #p aom.tmp >= #t aom.tmp run data modify storage aom:tmp chat.nav append value ${snbt(menuNavNext)}`,
     tellraw("@s", [nbt("chat.nav", { storage: "aom:tmp" }, { interpret: true })]),
@@ -978,7 +1213,7 @@ export function build(): Datapack {
     ])}`,
     "data modify storage aom:tmp chat.lines set value []",
     "scoreboard players set #i aom.tmp 0",
-    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townInfoBuildingLine.name}`,
+    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] at @s run function ${townInfoBuildingLine.name}`,
     tellraw("@s", [
       nbt("chat.lines", { storage: "aom:tmp" }, { interpret: true }),
       text("\n"),
@@ -1000,16 +1235,14 @@ export function build(): Datapack {
 
   const townInfoPage = d.defineFunction("town/info/page", [
     `$execute unless data storage aom:data players.$(key).page run data modify storage aom:data players.$(key).page set value 1`,
-    // Menu pages carry the action code; standalone pages use the trigger values.
     `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.pagePrev} run function ${townInfoPrev.name} with storage aom:tmp chat`,
     `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.pageNext} run function ${townInfoNext.name} with storage aom:tmp chat`,
     `execute unless score @s aom.action matches ${TOWNHALL_ACTIONS.pagePrev}..${TOWNHALL_ACTIONS.pageNext} if score @s aom.town_info matches 2..2 run function ${townInfoPrev.name} with storage aom:tmp chat`,
     `execute unless score @s aom.action matches ${TOWNHALL_ACTIONS.pagePrev}..${TOWNHALL_ACTIONS.pageNext} if score @s aom.town_info matches 3..3 run function ${townInfoNext.name} with storage aom:tmp chat`,
     "scoreboard players set #p aom.tmp 0",
     `$execute store result score #p aom.tmp run data get storage aom:data players.$(key).page`,
-    // total pages = 2 fixed pages + one per 8 buildings
     "scoreboard players set #b aom.tmp 0",
-    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
+    `$execute as ${MARKER_ANCHOR}[nbt={data:{aom:{town:"$(town)"}}}] run scoreboard players add #b aom.tmp 1`,
     "scoreboard players operation #t aom.tmp = #b aom.tmp",
     "scoreboard players add #t aom.tmp 7",
     "scoreboard players operation #t aom.tmp /= 8 aom.tmp",
@@ -1022,15 +1255,12 @@ export function build(): Datapack {
     `execute if score #p aom.tmp matches 3.. run function ${townInfoRenderBuildings.name} with storage aom:tmp chat`,
   ]);
 
-  // `/trigger aom.town_info` shows the same pages from anywhere, without a sign.
   const townInfoDispatch = d.defineFunction("town/info/dispatch", [
     `$execute unless data storage aom:data players.$(key).town run tellraw @s ${snbt([text("You are not in a town.", { color: "red" })])}`,
     `$execute unless data storage aom:data players.$(key).town run return fail`,
     "scoreboard players set @s aom.action 0",
     `$data modify storage aom:tmp chat.town set from storage aom:data players.$(key).town`,
     `data remove storage aom:tmp chat.nav`,
-    // A bare `/trigger aom.town_info` sets 1: start again at page 1. The nav
-    // buttons set 2/3, which keep the current page.
     `execute if score @s aom.town_info matches 1..1 run data modify storage aom:data players.$(key).page set value 1`,
     `$execute unless data storage aom:data players.$(key).page run data modify storage aom:data players.$(key).page set value 1`,
     `function ${townInfoPage.name} with storage aom:tmp chat`,
@@ -1044,15 +1274,12 @@ export function build(): Datapack {
   // Building: removal and scanning
   // -------------------------------------------------------------------------
 
-  // Anchor cleanup, run as the anchor marker.
   const buildRemoveAnchor = d.defineFunction("build/remove/anchor", [
     `$kill @e[type=minecraft:interaction,tag=aom_click,nbt={data:{aom:{town:"$(town)",building:$(building)}}}]`,
     "setblock ~ ~ ~ air",
     "kill @s",
   ]);
 
-  // Packing pushes the building (workers/villagers/storage included) onto the
-  // town's per-type stack `packed.<type>`; placing a plan of that type pops it.
   const packRefs = new Map<string, FunctionRef>();
   for (const type of BUILDINGS) {
     packRefs.set(
@@ -1068,12 +1295,9 @@ export function build(): Datapack {
 
   const scanRefs = new Map<string, FunctionRef>();
   for (const type of BUILDINGS) {
-    const plan = planFor(type);
-    // Breaking a built sign drops a plain sign item (and sometimes a plan item
-    // with its `custom_data`). Kill any dropped sign on the block, then refund
-    // exactly one, so breaking a sign can never duplicate it.
+    const plan = planById(type.id);
     const dropSelector =
-      `@e[type=minecraft:item,distance=..1.5,nbt={Item:{id:"${PLAN_SIGN}"}}]`;
+      `@e[type=minecraft:item,distance=..1.5,nbt={Item:{id:"minecraft:oak_sign"}}]`;
     const remove = d.defineFunction(`build/scan/remove/${type.id}`, [
       "data remove storage aom:tmp pack",
       `$data modify storage aom:tmp pack.town set value "$(town)"`,
@@ -1093,11 +1317,14 @@ export function build(): Datapack {
     );
   }
 
-  const buildScanDispatch = d.defineFunction("build/scan/dispatch", typeDispatch(
-    BUILDINGS,
-    (type) =>
-      `function ${refOf(scanRefs, type.id).name} {"town":"$(town)","building":$(building)}`,
-  ));
+  const buildScanDispatch = d.defineFunction(
+    "build/scan/dispatch",
+    typeDispatch(
+      BUILDINGS,
+      (type) =>
+        `function ${refOf(scanRefs, type.id).name} {"town":"$(town)","building":$(building)}`,
+    ),
+  );
 
   const buildScanOne = d.defineFunction("build/scan/one", [
     "data remove storage aom:tmp anchor",
@@ -1105,34 +1332,28 @@ export function build(): Datapack {
     `execute if data storage aom:tmp anchor run function ${buildScanDispatch.name} with storage aom:tmp anchor`,
   ]);
 
-  const buildScan = d.defineFunction(
-    "build/scan",
-    eachAnchor(`function ${buildScanOne.name}`),
-  );
+  const buildScan = d.defineFunction("build/scan", eachAnchor(`function ${buildScanOne.name}`));
 
   // -------------------------------------------------------------------------
   // Building: placement
   // -------------------------------------------------------------------------
 
-  // The anchor is placed with absolute coordinates: `positioned` plus relative
-  // `~.5` proved unreliable here, while absolute coordinates are exact.
   const anchorSelector = (): string =>
     anchorOf({ town: "$(town)", building: "$(id)" });
 
   const placeCreateRefs = new Map<string, FunctionRef>();
   for (const type of BUILD_MENU_BUILDINGS) {
-    const hookLines: Lines =
-      type.category === "townhouse"
-        ? [
-            `$data modify storage aom:data towns.$(town).buildings.$(id).villagers set value 1`,
-            `$scoreboard players add $(town) aom.population 1`,
-            `$execute as ${anchorSelector()} at @s run ${waxSign("~ ~ ~")}`,
-            `tellraw @s ${snbt([text("Built a townhouse.", { color: "green" })])}`,
-          ]
-        : [
-            `$execute as ${anchorSelector()} at @s run ${waxSign("~ ~ ~")}`,
-            `tellraw @s ${snbt([text(`Built a ${type.label.toLowerCase()}.`, { color: "green" })])}`,
-          ];
+    const hookLines: Lines = type.population
+      ? [
+          `$data modify storage aom:data towns.$(town).buildings.$(id).villagers set value 1`,
+          `$scoreboard players add $(town) aom.population 1`,
+          `$execute as ${anchorSelector()} at @s run ${waxSign("~ ~ ~")}`,
+          `tellraw @s ${snbt([text(`Built a ${type.label.toLowerCase()}.`, { color: "green" })])}`,
+        ]
+      : [
+          `$execute as ${anchorSelector()} at @s run ${waxSign("~ ~ ~")}`,
+          `tellraw @s ${snbt([text(`Built a ${type.label.toLowerCase()}.`, { color: "green" })])}`,
+        ];
     placeCreateRefs.set(
       type.id,
       d.defineFunction(`build/place/create/${type.id}`, hookLines),
@@ -1141,21 +1362,16 @@ export function build(): Datapack {
 
   const placeFinish = d.defineFunction("build/place/finish", [
     `$data remove storage aom:data players.$(key).pending.sign`,
-    // Self-heal: exactly one anchor marker per building, at the sign block.
     `$kill ${anchorSelector()}`,
-    // Align first: the stored sign coords may be fractional, and `~.5` from a
-    // fractional base would put the anchor off the sign block.
     `$execute in $(dimension) positioned $(x) $(y) $(z) align xyz run ${summonAnchor("~.5 ~.5 ~.5", { town: "$(town)", building: "$(id)", type: "$(type)" })}`,
     `$kill @e[type=minecraft:interaction,tag=aom_click,nbt={data:{aom:{town:"$(town)",building:$(id)}}}]`,
     `$execute as ${anchorSelector()} at @s align xyz run summon minecraft:interaction ~.5 ~ ~.5 {Tags:["aom_click"],width:1.0f,height:1.0f,response:0b,data:{aom:{town:"$(town)",building:$(id),type:"$(type)"}}}`,
     `$execute unless entity ${anchorSelector()} run tellraw @s ${snbt([text("[aom] anchor marker was not created", { color: "red" })])}`,
     `$execute as ${anchorSelector()} at @s run function ${renderSignsDispatch.name} {"town":"$(town)","building":$(id)}`,
-    // Open the new building's menu straight away.
     `$data modify storage aom:tmp anchor set value {town:"$(town)",building:$(id),type:"$(type)"}`,
     `$function ${showBuildingMenu.name}`,
   ]);
 
-  // Restores a packed building (workers/villagers/storage intact) at this sign.
   const placeRestore = d.defineFunction("build/place/restore", [
     `$data modify storage aom:data towns.$(town).buildings.$(id) set from storage aom:data towns.$(town).packed.$(type)[-1]`,
     `$data remove storage aom:data towns.$(town).packed.$(type)[-1]`,
@@ -1165,10 +1381,8 @@ export function build(): Datapack {
     `function ${placeFinish.name} with storage aom:tmp place`,
   ]);
 
-  // A new building starts empty.
   const placeFresh = d.defineFunction("build/place/fresh", [
     `$data modify storage aom:data towns.$(town).buildings.$(id) set value {type:"$(type)",jobs:{},storage:{}}`,
-    // The place arguments carry the building number as `id`, not `building`.
     ...BUILD_MENU_BUILDINGS.map(
       (type) =>
         `$execute if data storage aom:data towns.$(town).buildings.$(id){type:"${type.id}"} run function ${refOf(placeCreateRefs, type.id).name} with storage aom:tmp place`,
@@ -1178,8 +1392,6 @@ export function build(): Datapack {
 
   const placeCreate = d.defineFunction("build/place/create", [
     `$execute in $(dimension) run ${summonAnchor("$(x) $(y) $(z)", { town: "$(town)", building: "$(id)", type: "$(type)" })}`,
-    // Decide restore-vs-fresh before either branch runs: restore deletes the
-    // packed entry, so re-testing `packed` afterwards would also run fresh.
     "data remove storage aom:tmp restore",
     `$execute if data storage aom:data towns.$(town).packed.$(type)[0] run data modify storage aom:tmp restore set value 1`,
     `execute if data storage aom:tmp restore run function ${placeRestore.name} with storage aom:tmp place`,
@@ -1187,13 +1399,12 @@ export function build(): Datapack {
   ]);
 
   const placeCheck = d.defineFunction("build/place/check", [
-    // Absolute-coordinate checks so they never depend on the execution position.
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run tellraw @s ${snbt([text("The sign is gone.", { color: "red" })])}`,
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run return fail`,
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run tellraw @s ${snbt([text("There is already a building at this sign.", { color: "red" })])}`,
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run return fail`,
     `$scoreboard players add $(town) aom.build_acc 0`,
-    "$execute store result storage aom:tmp place.id int 1 run scoreboard players get $(town) aom.build_acc",
+    "execute store result storage aom:tmp place.id int 1 run scoreboard players get $(town) aom.build_acc",
     `$scoreboard players add $(town) aom.build_acc 1`,
     `function ${placeCreate.name} with storage aom:tmp place`,
   ]);
@@ -1205,11 +1416,46 @@ export function build(): Datapack {
     `function ${placeCheck.name} with storage aom:tmp place`,
   ]);
 
+  const requireRefs = new Map<string, FunctionRef>();
+  const requireCheckRefs = new Map<string, FunctionRef>();
+  for (const type of BUILD_MENU_BUILDINGS) {
+    if (!type.requires?.length) continue;
+    const names = type.requires
+      .map((requirement) => UNLOCK_INFO.get(requirement)?.label ?? requirement)
+      .join(" and ");
+    requireCheckRefs.set(
+      type.id,
+      d.defineFunction(`build/require/${type.id}`, [
+        ...type.requires.map(
+          (requirement) =>
+            `$execute unless data storage aom:data towns.$(town).unlocks.${requirement} run scoreboard players set #blocked aom.tmp 1`,
+        ),
+        `execute if score #blocked aom.tmp matches 1 run ${err("@s", `Requires a staffed ${names}.`)}`,
+      ]),
+    );
+  }
+  for (const type of BUILD_MENU_BUILDINGS) {
+    requireRefs.set(
+      type.id,
+      d.defineFunction(`build/require/load/${type.id}`, [
+        "scoreboard players set #blocked aom.tmp 0",
+        "data remove storage aom:tmp req",
+        `$data modify storage aom:tmp req.town set from storage aom:data players.$(key).town`,
+        `$data modify storage aom:tmp req.key set value "$(key)"`,
+        ...(type.requires?.length
+          ? [`execute if data storage aom:tmp req.town run function ${refOf(requireCheckRefs, type.id).name} with storage aom:tmp req`]
+          : []),
+      ]),
+    );
+  }
+
   const placeRefs = new Map<string, FunctionRef>();
   for (const type of BUILD_MENU_BUILDINGS) {
     placeRefs.set(
       type.id,
       d.defineFunction(`build/place/${type.id}`, [
+        `function ${refOf(requireRefs, type.id).name} with storage aom:tmp place`,
+        "execute if score #blocked aom.tmp matches 1 run return fail",
         `data modify storage aom:tmp place.type set value "${type.id}"`,
         `function ${placeCommon.name} with storage aom:tmp place`,
       ]),
@@ -1236,38 +1482,87 @@ export function build(): Datapack {
     ...playerCall(buildSetDispatch),
   ]);
 
-  const buildMenu = d.defineFunction("ui/build/menu", [
-    tellraw("@s", [
-      text("=== Build ===\n", { color: "gold", bold: true }),
-      text("Look at the sign you want to build on, then pick:\n", {
-        color: "gray",
+  // Build menu: one page of choices at a time.
+  const buildPageCount = Math.max(
+    1,
+    Math.ceil(BUILD_MENU_BUILDINGS.length / BUILD_PAGE_SIZE),
+  );
+  const buildPages: FunctionRef[] = [];
+  for (let page = 0; page < buildPageCount; page++) {
+    const start = page * BUILD_PAGE_SIZE;
+    const slice = BUILD_MENU_BUILDINGS.slice(start, start + BUILD_PAGE_SIZE);
+    const parts: TextComponent[] = [
+      text(`=== Build (page ${page + 1}/${buildPageCount}) ===\n`, {
+        color: "gold",
+        bold: true,
       }),
-      ...BUILD_MENU_BUILDINGS.flatMap((type, index) => [
+      text("Look at the sign you want to build on, then pick:\n", { color: "gray" }),
+    ];
+    for (const type of slice) {
+      const index = BUILD_MENU_BUILDINGS.indexOf(type);
+      parts.push(
         menuButton(
           type.label,
           `trigger aom.menu set ${BUILD_CODE + index + 1}`,
           `Build a ${type.label}`,
         ),
-        text(` ${type.description}\n`, { color: "dark_gray" }),
-      ]),
-      text("\nYou do not need to write anything on the sign.", {
-        color: "dark_gray",
-      }),
-    ]),
+        text(
+          ` ${type.requires?.length ? "(locked until its prerequisite is staffed) " : ""}${type.description}\n`,
+          { color: "dark_gray" },
+        ),
+      );
+    }
+    if (page > 0) {
+      parts.push(
+        menuButton(
+          "< Prev",
+          `trigger aom.menu set ${BUILD_CODE + BUILD_PAGE_PREV}`,
+          "Previous page",
+          "gray",
+        ),
+        " ",
+      );
+    }
+    if (page + 1 < buildPageCount) {
+      parts.push(
+        menuButton(
+          "Next >",
+          `trigger aom.menu set ${BUILD_CODE + BUILD_PAGE_NEXT}`,
+          "Next page",
+          "gray",
+        ),
+      );
+    }
+    buildPages.push(
+      d.defineFunction(`ui/build/page/${page + 1}`, [tellraw("@s", parts)]),
+    );
+  }
+
+  const buildShow = d.defineFunction("ui/build/show", [
+    `$execute unless data storage aom:data players.$(key).build_page run data modify storage aom:data players.$(key).build_page set value 1`,
+    "scoreboard players set #p aom.tmp 0",
+    `$execute store result score #p aom.tmp run data get storage aom:data players.$(key).build_page`,
+    `execute if score #p aom.tmp matches ..1 run scoreboard players set #p aom.tmp 1`,
+    `execute if score #p aom.tmp matches ${buildPageCount}.. run scoreboard players set #p aom.tmp ${buildPageCount}`,
+    `$execute store result storage aom:data players.$(key).build_page int 1 run scoreboard players get #p aom.tmp`,
+    ...buildPages.map(
+      (ref, index) =>
+        `execute if score #p aom.tmp matches ${index + 1} run function ${ref.name}`,
+    ),
   ]);
 
   const buildCreateDispatch = d.defineFunction("build/create/dispatch", [
-    // Building needs an existing town; found one with a Townhall Plan.
     `$execute unless data storage aom:data players.$(key).town run tellraw @s ${snbt([text("You are not in a town. Place a Townhall Plan to found one.", { color: "red" })])}`,
     `$execute unless data storage aom:data players.$(key).town run return fail`,
     "execute align xyz run summon minecraft:marker ~ ~ ~ {Tags:[\"aom_tmp_pos\"]}",
     `$data modify storage aom:data players.$(key).pending.sign set value {}`,
-    `$execute store result storage aom:data players.$(key).pending.sign.x int 1 run data get entity ${MARKER_TMP} Pos[0]`,
-    `$execute store result storage aom:data players.$(key).pending.sign.y int 1 run data get entity ${MARKER_TMP} Pos[1]`,
-    `$execute store result storage aom:data players.$(key).pending.sign.z int 1 run data get entity ${MARKER_TMP} Pos[2]`,
+    `$execute store result storage aom:data players.$(key).pending.sign.x int 1 run data get entity @e[type=minecraft:marker,tag=aom_tmp_pos,limit=1] Pos[0]`,
+    `$execute store result storage aom:data players.$(key).pending.sign.y int 1 run data get entity @e[type=minecraft:marker,tag=aom_tmp_pos,limit=1] Pos[1]`,
+    `$execute store result storage aom:data players.$(key).pending.sign.z int 1 run data get entity @e[type=minecraft:marker,tag=aom_tmp_pos,limit=1] Pos[2]`,
     "kill @e[type=minecraft:marker,tag=aom_tmp_pos]",
     `$data modify storage aom:data players.$(key).pending.sign.dimension set from entity @s Dimension`,
-    `function ${buildMenu.name}`,
+    `$data modify storage aom:data players.$(key).build_page set value 1`,
+    `function ${buildShow.name} with storage aom:tmp ctx`,
   ]);
 
   const buildCreateAt = d.defineFunction("build/create/at", [
@@ -1281,14 +1576,12 @@ export function build(): Datapack {
   const buildDeleteExec = d.defineFunction("build/delete/exec", [
     `$execute unless data storage aom:data towns.$(town).buildings.$(building) run return fail`,
     `$data modify storage aom:tmp ctx.type set from storage aom:data towns.$(town).buildings.$(building).type`,
-    // Keep the workers: push the building onto the town's packed stack.
     ...BUILDINGS.map(
       (type) =>
         `$execute if data storage aom:tmp ctx{type:"${type.id}"} run function ${refOf(packRefs, type.id).name} with storage aom:tmp ctx`,
     ),
-    // The plan drops at the sign; the item names its own type.
     ...BUILDINGS.map((type) => {
-      const plan = planFor(type);
+      const plan = planById(type.id);
       return `$execute if data storage aom:tmp ctx{type:"${type.id}"} as ${anchorOf({ town: "$(town)", building: "$(building)" })} at @s run summon minecraft:item ~ ~1 ~ {Item:${planItem(plan)}}`;
     }),
     `$execute as ${anchorOf({ town: "$(town)", building: "$(building)" })} at @s run function ${buildRemoveAnchor.name} {"town":"$(town)","building":$(building)}`,
@@ -1316,13 +1609,101 @@ export function build(): Datapack {
   ]);
 
   // -------------------------------------------------------------------------
-  // UI: menu, actions, confirmation
+  // UI: menus and actions
   // -------------------------------------------------------------------------
 
-  // The townhall menu *is* the town info: its pages and navigation are followed
-  // by the town's action buttons.
+  const jobMenuParts = (type: BuildingType): TextComponent[] => {
+    const parts: TextComponent[] = [];
+    type.jobs.forEach((job, index) => {
+      parts.push(
+        text(`  ${job.label}: `, { color: "gray" }),
+        text(`$(workers_${job.id}) `, { color: "aqua" }),
+        menuButton(
+          "Hire",
+          `trigger aom.menu set ${ACTION_CODE + index + 1}`,
+          `Hire a ${job.label}`,
+          "green",
+        ),
+        "\n",
+      );
+    });
+    buildingResources(type).forEach((res, resourceIndex) => {
+      parts.push(text(`${res.label} `, { color: "gold" }));
+      parts.push(
+        text(`[$(stored_${res.id})/$(capacity_${res.id})] `, { color: "yellow" }),
+      );
+      parts.push(
+        text(`$(discovered_${res.id})`, { color: "dark_gray" }),
+        "\n  ",
+      );
+      STORAGE_AMOUNTS.forEach((amount, amountIndex) => {
+        parts.push(
+          menuButton(
+            amount.label,
+            `trigger aom.menu set ${ACTION_CODE + storageAction(type, resourceIndex, "deposit", amountIndex)}`,
+            `Deposit ${amount.label} ${res.label}`,
+            "red",
+          ),
+          " ",
+        );
+      });
+      parts.push(text("| ", { color: "dark_gray" }));
+      STORAGE_AMOUNTS.forEach((amount, amountIndex) => {
+        parts.push(
+          menuButton(
+            amount.label,
+            `trigger aom.menu set ${ACTION_CODE + storageAction(type, resourceIndex, "withdraw", amountIndex)}`,
+            `Withdraw ${amount.label} ${res.label}`,
+            "green",
+          ),
+          " ",
+        );
+      });
+      parts.push("\n");
+    });
+    return parts;
+  };
+
+  const menuRefs = new Map<string, FunctionRef>();
+  for (const type of BUILDINGS) {
+    if (type.townhall || (!type.jobs.length && !type.population)) continue;
+    const parts: TextComponent[] = [
+      text(`${type.label}\n`, { color: "gold", bold: true }),
+      ...jobMenuParts(type),
+    ];
+    if (type.population) {
+      parts.push(
+        text("Villagers: ", { color: "gray" }),
+        text("$(villagers)\n", { color: "aqua" }),
+        menuButton(
+          "Add villager",
+          `trigger aom.menu set ${ACTION_CODE + populationAction(type, "add")}`,
+          "Add a villager",
+          "green",
+        ),
+        " ",
+        menuButton(
+          "Remove villager",
+          `trigger aom.menu set ${ACTION_CODE + populationAction(type, "remove")}`,
+          "Remove a villager",
+          "red",
+        ),
+        "\n",
+      );
+    }
+    parts.push(
+      menuButton(
+        "Delete building",
+        `trigger aom.menu set ${ACTION_CODE + deleteAction(type)}`,
+        "Delete this building",
+        "red",
+      ),
+    );
+    menuRefs.set(type.id, d.defineFunction(`ui/menu/${type.id}`, ["$" + tellraw("@s", parts)]));
+  }
+
   const menuTownhall = d.defineFunction("ui/menu/townhall", [
-    `data remove storage aom:tmp chat`,
+    "data remove storage aom:tmp chat",
     `data modify storage aom:tmp chat.town set value "$(town)"`,
     `function ${playerKey.name}`,
     `data modify storage aom:tmp chat.key set from storage aom:tmp player_key`,
@@ -1354,115 +1735,10 @@ export function build(): Datapack {
     ]),
   ]);
 
-  const menuTownhouse = d.defineFunction("ui/menu/townhouse", [
-    "$" + tellraw("@s", [
-      text("Townhouse\n", { color: "gold", bold: true }),
-      text("Villagers: ", { color: "gray" }),
-      text("$(villagers)\n", { color: "aqua" }),
-      menuButton(
-        "Add villager",
-        `trigger aom.menu set ${ACTION_CODE + TOWNHOUSE_ACTIONS.addVillager}`,
-        "Add a villager",
-        "green",
-      ),
-      " ",
-      menuButton(
-        "Remove villager",
-        `trigger aom.menu set ${ACTION_CODE + TOWNHOUSE_ACTIONS.removeVillager}`,
-        "Remove a villager",
-        "red",
-      ),
-      "\n",
-      menuButton(
-        "Delete building",
-        `trigger aom.menu set ${ACTION_CODE + TOWNHOUSE_ACTIONS.delete}`,
-        "Delete this building",
-        "red",
-      ),
-    ]),
-  ]);
-
-  const menuRefs = new Map<string, FunctionRef>();
-  for (const type of INDUSTRIAL_BUILDINGS) {
-    const parts: TextComponent[] = [
-      text(`${type.label}\n`, { color: "gold", bold: true }),
-    ];
-    const jobLine = (job: Job, index: number): void => {
-      parts.push(
-        text(`  ${job.label}: `, { color: "gray" }),
-        text(`$(workers_${job.id}) `, { color: "aqua" }),
-        menuButton(
-          "Hire",
-          `trigger aom.menu set ${ACTION_CODE + index + 1}`,
-          `Hire a ${job.label}`,
-          "green",
-        ),
-        "\n",
-      );
-    };
-    // Jobs that do not use a resource (recipe unlocks) first.
-    type.jobs.forEach((job, index) => {
-      if (job.kind === "unlock") jobLine(job, index);
-    });
-    buildingResources(type).forEach((res, resourceIndex) => {
-      parts.push(text(`${res.label}:\n`, { color: "gold" }));
-      type.jobs.forEach((job, index) => {
-        if (job.resource === res.id) jobLine(job, index);
-      });
-      parts.push(text("  ", { color: "gray" }));
-      STORAGE_AMOUNTS.forEach((amount, amountIndex) => {
-        parts.push(
-          menuButton(
-            amount.label,
-            `trigger aom.menu set ${ACTION_CODE + storageAction(type, resourceIndex, "deposit", amountIndex)}`,
-            `Deposit ${amount.label} ${res.label}`,
-            "red",
-          ),
-          " ",
-        );
-      });
-      parts.push(
-        text("[", { color: "gray" }),
-        text(`$(stored_${res.id})`, { color: "yellow" }),
-        text("/", { color: "gray" }),
-        text(`$(capacity_${res.id})`, { color: "yellow" }),
-        text("] ", { color: "gray" }),
-      );
-      STORAGE_AMOUNTS.forEach((amount, amountIndex) => {
-        parts.push(
-          menuButton(
-            amount.label,
-            `trigger aom.menu set ${ACTION_CODE + storageAction(type, resourceIndex, "withdraw", amountIndex)}`,
-            `Withdraw ${amount.label} ${res.label}`,
-            "green",
-          ),
-          " ",
-        );
-      });
-      parts.push("\n");
-    });
-    parts.push(
-      menuButton(
-        "Delete building",
-        `trigger aom.menu set ${ACTION_CODE + deleteAction(type)}`,
-        "Delete this building",
-        "red",
-      ),
-    );
-    menuRefs.set(
-      type.id,
-      d.defineFunction(`ui/menu/${type.id}`, ["$" + tellraw("@s", parts)]),
-    );
-  }
-
-  // Menus are opened from the nearest anchor (stand at the sign), and the
-  // anchor carries its building type so the dispatch needs no macro arguments.
   const menuSave = d.defineFunction("ui/menu/save", [
     `$data modify storage aom:data players.$(key).pending set from storage aom:tmp anchor`,
   ]);
 
-  // A freshly opened menu always starts on its first chat page. Re-renders
-  // (`ui/menu/refresh`) keep the current page so navigation works.
   const menuResetPageExec = d.defineFunction("ui/menu/reset_page/exec", [
     `$data modify storage aom:data players.$(key).page set value 1`,
   ]);
@@ -1470,39 +1746,29 @@ export function build(): Datapack {
     ...playerCall(menuResetPageExec),
   ]);
 
-  // Shows the menu for the anchor currently in `aom:tmp anchor` (run as the
-  // player). Shared by the raycast (`ui/menu/open`) and right-click on the
-  // building's interaction entity (`ui/click/check`).
   const menuShow = d.defineFunction("ui/menu/show", [
     ...playerCall(menuSave),
     `execute if data storage aom:tmp anchor run function ${summaryLoad.name} with storage aom:tmp anchor`,
     ...BUILDINGS.map((type) => {
-      const menu = type.category === "townhall"
-        ? menuTownhall
-        : type.category === "townhouse"
-          ? menuTownhouse
-          : refOf(menuRefs, type.id);
-      const args = type.category === "townhall" ? "anchor" : "summary";
-      return `execute if data storage aom:tmp anchor{type:"${type.id}"} run function ${menu.name} with storage aom:tmp ${args}`;
+      if (type.townhall) {
+        return `execute if data storage aom:tmp anchor{type:"${type.id}"} run function ${menuTownhall.name} with storage aom:tmp anchor`;
+      }
+      const menu = refOf(menuRefs, type.id);
+      return `execute if data storage aom:tmp anchor{type:"${type.id}"} run function ${menu.name} with storage aom:tmp summary`;
     }),
   ]);
 
-  // Re-shows the building whose action just ran, with fresh data. `aom:tmp
-  // menu` is set by `ui/action/dispatch2` and survives the action handlers
-  // clobbering `aom:tmp ctx`.
   const menuRefresh = d.defineFunction("ui/menu/refresh", [
     "execute unless data storage aom:tmp menu run return fail",
     "data modify storage aom:tmp anchor set from storage aom:tmp menu",
     `function ${menuShow.name}`,
   ]);
 
-  // Opening the build menu for the sign currently in `aom:tmp anchor`.
   const menuOpen = d.defineFunction("ui/menu/open", [
     "data remove storage aom:tmp anchor",
     `execute if entity ${findAnchorAt()} as ${findAnchorAt()} run data modify storage aom:tmp anchor set from entity @s data.aom`,
     `execute unless data storage aom:tmp anchor at @s as @e[type=minecraft:marker,tag=aom_anchor,distance=..0.9,limit=1,sort=nearest] run data modify storage aom:tmp anchor set from entity @s data.aom`,
     `execute unless data storage aom:tmp anchor at @s as @e[type=minecraft:marker,tag=aom_anchor,distance=..3,limit=1,sort=nearest] run data modify storage aom:tmp anchor set from entity @s data.aom`,
-    // No building here: an empty sign starts the build flow instead.
     `execute unless data storage aom:tmp anchor if block ~ ~ ~ ${SIGN_BLOCK} run function ${buildCreateAt.name}`,
     `execute unless data storage aom:tmp anchor unless block ~ ~ ~ ${SIGN_BLOCK} run tellraw @s ${snbt([text("Look at a building sign or townhall first.", { color: "red" })])}`,
     "execute unless data storage aom:tmp anchor run return fail",
@@ -1514,7 +1780,6 @@ export function build(): Datapack {
     `execute align xyz run function ${menuOpen.name}`,
   ]);
 
-  // Right-clicking a building's interaction entity opens that building's menu.
   const clickCheck = d.defineFunction("ui/click/check", [
     "execute unless data entity @s interaction.player run return fail",
     "data modify storage aom:tmp anchor set from entity @s data.aom",
@@ -1541,49 +1806,41 @@ export function build(): Datapack {
 
   const actionRefs = new Map<string, FunctionRef>();
   for (const type of BUILDINGS) {
-    if (type.category === "townhall") {
-      actionRefs.set("townhall", d.defineFunction("ui/action/townhall", [
-        `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.join} run function ${townJoin.name}`,
-        `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.leave} run function ${townLeave.name}`,
-        `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.join}..${TOWNHALL_ACTIONS.leave} run function ${menuRefresh.name}`,
-        `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.deleteTown} run function ${townDeletePrompt.name} with storage aom:tmp ctx`,
-        // Page navigation re-renders the same menu with the new page.
-        `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.pagePrev}..${TOWNHALL_ACTIONS.pageNext} run function ${menuRefresh.name}`,
-      ]));
+    if (type.townhall) {
+      actionRefs.set(
+        "townhall",
+        d.defineFunction("ui/action/townhall", [
+          `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.join} run function ${townJoin.name}`,
+          `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.leave} run function ${townLeave.name}`,
+          `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.join}..${TOWNHALL_ACTIONS.leave} run function ${menuRefresh.name}`,
+          `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.deleteTown} run function ${townDeletePrompt.name} with storage aom:tmp ctx`,
+          `execute if score @s aom.action matches ${TOWNHALL_ACTIONS.pagePrev}..${TOWNHALL_ACTIONS.pageNext} run function ${menuRefresh.name}`,
+        ]),
+      );
       continue;
     }
-    if (type.category === "townhouse") {
-      actionRefs.set("townhouse", d.defineFunction("ui/action/townhouse", [
-        `$execute unless data storage aom:data players.$(key){town:"$(town)"} run tellraw @s ${snbt([text("You are not a member of this town.", { color: "red" })])}`,
-        `$execute unless data storage aom:data players.$(key){town:"$(town)"} run return fail`,
-        `execute if score @s aom.action matches ${TOWNHOUSE_ACTIONS.addVillager} run data modify storage aom:tmp ctx.delta set value 1`,
-        `execute if score @s aom.action matches ${TOWNHOUSE_ACTIONS.removeVillager} run data modify storage aom:tmp ctx.delta set value -1`,
-        `execute if score @s aom.action matches ${TOWNHOUSE_ACTIONS.addVillager}..${TOWNHOUSE_ACTIONS.removeVillager} run function ${townVillager.name} with storage aom:tmp ctx`,
-        `execute if score @s aom.action matches ${TOWNHOUSE_ACTIONS.addVillager}..${TOWNHOUSE_ACTIONS.removeVillager} run function ${menuRefresh.name}`,
-        `execute if score @s aom.action matches ${TOWNHOUSE_ACTIONS.delete} run function ${buildDeletePrompt.name} with storage aom:tmp ctx`,
-      ]));
-      continue;
-    }
+    if (!type.jobs.length && !type.population) continue;
 
     const lines: Lines = [
       `$execute unless data storage aom:data players.$(key){town:"$(town)"} run tellraw @s ${snbt([text("You are not a member of this town.", { color: "red" })])}`,
       `$execute unless data storage aom:data players.$(key){town:"$(town)"} run return fail`,
     ];
     type.jobs.forEach((job, index) => {
-      const key = `${type.id}/${job.id}`;
       lines.push(
-        `$execute if score @s aom.action matches ${index + 1} run function ${refOf(hireRefs, key).name} {"key":"$(key)","town":"$(town)","building":$(building)}`,
+        `$execute if score @s aom.action matches ${index + 1} run function ${refOf(hireRefs, `${type.id}/${job.id}`).name} {"key":"$(key)","town":"$(town)","building":$(building)}`,
       );
     });
+    if (type.population) {
+      lines.push(
+        `execute if score @s aom.action matches ${populationAction(type, "add")} run data modify storage aom:tmp ctx.delta set value 1`,
+        `execute if score @s aom.action matches ${populationAction(type, "remove")} run data modify storage aom:tmp ctx.delta set value -1`,
+        `execute if score @s aom.action matches ${populationAction(type, "add")}..${populationAction(type, "remove")} run function ${townVillager.name} with storage aom:tmp ctx`,
+      );
+    }
     buildingResources(type).forEach((res, resourceIndex) => {
       STORAGE_AMOUNTS.forEach((amount, amountIndex) => {
         const deposit = storageAction(type, resourceIndex, "deposit", amountIndex);
-        const withdraw = storageAction(
-          type,
-          resourceIndex,
-          "withdraw",
-          amountIndex,
-        );
+        const withdraw = storageAction(type, resourceIndex, "withdraw", amountIndex);
         const args = `{"key":"$(key)","town":"$(town)","building":$(building),"amount":${amount.value}}`;
         const key = `${type.id}/${res.id}`;
         lines.push(
@@ -1607,7 +1864,8 @@ export function build(): Datapack {
     `$data modify storage aom:tmp menu.type set from storage aom:data towns.$(town).buildings.$(building).type`,
     ...typeDispatch(
       BUILDINGS,
-      (type) => `function ${refOf(actionRefs, type.id).name} with storage aom:tmp ctx`,
+      (type) =>
+        `function ${refOf(actionRefs, type.id).name} with storage aom:tmp ctx`,
     ),
   ]);
 
@@ -1619,10 +1877,7 @@ export function build(): Datapack {
     `function ${actionDispatch2.name} with storage aom:tmp ctx`,
   ]);
 
-  const actionRun = d.defineFunction(
-    "ui/action/run",
-    playerCall(actionDispatch),
-  );
+  const actionRun = d.defineFunction("ui/action/run", playerCall(actionDispatch));
 
   const uiAction = d.defineFunction("ui/action", [
     `execute if score @s aom.action matches ..-1 run function ${confirmRun.name}`,
@@ -1636,18 +1891,12 @@ export function build(): Datapack {
   const guideTotal = GUIDE.length;
   const guidePrevNav = text("[<] ", {
     color: "green",
-    click_event: {
-      action: "run_command",
-      command: "/trigger aom.guide set 2",
-    },
+    click_event: { action: "run_command", command: "/trigger aom.guide set 2" },
     hover_event: { action: "show_text", value: "Previous page" },
   });
   const guideNextNav = text("[>]", {
     color: "green",
-    click_event: {
-      action: "run_command",
-      command: "/trigger aom.guide set 3",
-    },
+    click_event: { action: "run_command", command: "/trigger aom.guide set 3" },
     hover_event: { action: "show_text", value: "Next page" },
   });
 
@@ -1695,12 +1944,9 @@ export function build(): Datapack {
   const guide = d.defineFunction("ui/guide", playerCall(guideDispatch, "guide"));
 
   // -------------------------------------------------------------------------
-  // Craftable plans: place a token block to found a town / build.
+  // Craftable plans: recipes, advancements and placement
   // -------------------------------------------------------------------------
 
-  // Positioning: step along the view to the sign you are looking at. The step
-  // aligns to the hit block *before* calling `on_hit`, so the callback runs at
-  // the sign block itself.
   const planRayStep = d.ref("plan/ray/step");
   const planRayStart = d.defineFunction("plan/ray/start", [
     `scoreboard players set @s ${RAY_OBJECTIVE} 50`,
@@ -1710,8 +1956,6 @@ export function build(): Datapack {
     `scoreboard players remove @s ${RAY_OBJECTIVE} 1`,
     `$execute if score @s ${RAY_OBJECTIVE} matches ..0 run function $(on_miss)`,
     `execute if score @s ${RAY_OBJECTIVE} matches ..0 run return fail`,
-    // Stop at the first sign you look at, even if it is already built: the
-    // search around it finds the freshly placed sign next to it.
     `$execute if block ~ ~ ~ ${SIGN_BLOCK} align xyz run function $(on_hit)`,
     `execute if block ~ ~ ~ ${SIGN_BLOCK} align xyz run return 1`,
     `$execute positioned ^ ^ ^0.1 run function ${planRayStep.name} {on_hit: "$(on_hit)", on_miss: "$(on_miss)"}`,
@@ -1720,7 +1964,6 @@ export function build(): Datapack {
   const planLocalTmp =
     "@e[type=minecraft:marker,tag=aom_tmp_pos,distance=..0.2,limit=1,sort=nearest]";
 
-  // Snapshot the current block as `found` and continue.
   const planPlaceCandidate = d.defineFunction("plan/place/candidate", [
     "scoreboard players set #found aom.tmp 1",
     'execute align xyz run summon minecraft:marker ~ ~ ~ {Tags:["aom_tmp_pos"]}',
@@ -1732,11 +1975,8 @@ export function build(): Datapack {
     `$function $(action) with storage aom:tmp ctx`,
   ]);
 
-  // How far from the aimed block to look, step by step, before giving up.
   const planSearchRadius = 3;
 
-  // Starting at the aimed block, check this block first, then step back toward
-  // the player at increasing distance for a sign without a building.
   const planPlaceSearchFromHere = d.defineFunction("plan/place/search_here", [
     "data remove storage aom:data players.$(key).found",
     `data modify storage aom:data players.$(key).found set value {}`,
@@ -1762,8 +2002,6 @@ export function build(): Datapack {
     "execute if score #found aom.tmp matches 0 run function aom:plan/place/miss",
   ]);
 
-  // Placing a plan sign builds it: the ray picks the aimed block, then the
-  // search accepts that block or one back toward the player.
   const planPlacePrepare = d.defineFunction("plan/place/prepare", [
     `execute at @s anchored eyes run function ${planRayStart.name} {on_hit: "aom:plan/place/hit", on_miss: "aom:plan/place/miss"}`,
   ]);
@@ -1775,15 +2013,21 @@ export function build(): Datapack {
   ]);
 
   for (const plan of PLANS) {
-    d.recipe(`plan/${plan.id}`, {
-      type: "minecraft:crafting_shapeless",
-      ingredients: [...plan.ingredients],
-      result: {
-        id: PLAN_SIGN,
-        count: 1,
-        components: planComponents(plan),
-      },
-    });
+    const type = BUILDINGS.find((entry) => entry.id === plan.id)!;
+    for (const wood of WOODS) {
+      const ingredients = type.id === "townhouse"
+        ? [wood.planks, wood.planks]
+        : [wood.planks, ...plan.extras];
+      d.recipe(`plan/${plan.id}/${wood.name}`, {
+        type: "minecraft:crafting_shapeless",
+        ingredients,
+        result: {
+          id: wood.sign,
+          count: 1,
+          components: planComponents(plan),
+        },
+      });
+    }
 
     const place = d.defineFunction(`plan/${plan.id}/place`, [
       `advancement revoke @s only aom:plan_${plan.id}_place`,
@@ -1795,8 +2039,6 @@ export function build(): Datapack {
       `function ${planPlacePrepare.name}`,
     ]);
 
-    // Self-describing: placement matches the sign's custom_data, so the same
-    // item works whether it was crafted or recovered from a deletion.
     d.advancement(`plan_${plan.id}_place`, {
       criteria: {
         placed: {
@@ -1808,7 +2050,7 @@ export function build(): Datapack {
                 {
                   type: "minecraft:match_tool",
                   predicate: {
-                    items: PLAN_SIGN,
+                    items: SIGN_ITEMS,
                     components: {
                       "minecraft:custom_data": { aom: { plan: plan.id } },
                     },
@@ -1823,14 +2065,6 @@ export function build(): Datapack {
     });
   }
 
-  // --- Founding a town from a placed townhall plan -------------------------
-  //
-  // Placing a Townhall Plan outside a town summons an `aom_found` interaction
-  // on the sign. Writing on the sign is unaffected (the editor opens on
-  // placement). Right-clicking confirms and founds the town; left-clicking or
-  // breaking the sign cancels. No trigger is involved.
-
-  // Runs as the clicker: validates the sign and founds the town from its name.
   const townFoundRun = d.defineFunction("town/found/run", [
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run tellraw @s ${snbt([text("The sign is gone.", { color: "red" })])}`,
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run return fail`,
@@ -1841,18 +2075,47 @@ export function build(): Datapack {
     "data modify storage aom:tmp town.key set from storage aom:tmp player_key",
     `$execute in $(dimension) run data modify storage aom:tmp town.name set from block $(x) $(y) $(z) front_text.messages[0]`,
     "execute if data storage aom:tmp town.name.text run data modify storage aom:tmp town.name set from storage aom:tmp town.name.text",
-    `$execute in $(dimension) positioned $(x) $(y) $(z) run function ${townCreateValidate.name} with storage aom:tmp town`,
+    `$execute in $(dimension) positioned $(x) $(y) $(z) run function ${d.ref("town/create/validate").name} with storage aom:tmp town`,
   ]);
 
-  // Right-click: found the town. The site is cleaned up by the next poll, once
-  // the building anchor exists (or, on failure, kept so the player can retry).
+  const townCreateValidate = d.defineFunction("town/create/validate", [
+    "data remove storage aom:tmp check",
+    "data modify storage aom:tmp check set value {}",
+    `$data modify storage aom:tmp check."$(name)" set value 1`,
+    `$execute store success score #valid aom.tmp run data get storage aom:tmp check.$(name)`,
+    "data remove storage aom:tmp check",
+    `execute if score #valid aom.tmp matches 0 run tellraw @s ${snbt([text("Town names may only contain letters, numbers and underscores.", { color: "red" })])}`,
+    "execute if score #valid aom.tmp matches 0 run return fail",
+    `$execute if data storage aom:data towns.$(name) run tellraw @s ${snbt([text("A town named ", { color: "red" }), text("$(name)", { color: "aqua" }), text(" already exists.", { color: "red" })])}`,
+    `$execute if data storage aom:data towns.$(name) run return fail`,
+    `$data modify storage aom:data towns.$(name) set value {members:{}}`,
+    `$data modify storage aom:data towns.$(name).buildings.1 set value {type:"townhall"}`,
+    `$scoreboard players set $(name) aom.population 0`,
+    `$scoreboard players set $(name) aom.employed 0`,
+    `$scoreboard players set $(name) aom.members 0`,
+    `$scoreboard players set $(name) aom.build_acc 2`,
+    `$execute align xyz run ${summonAnchor("~.5 ~.5 ~.5", { town: "$(name)", building: 1, type: "townhall" })}`,
+    `$execute as @e[type=minecraft:marker,tag=aom_anchor,nbt={data:{aom:{town:"$(name)",building:1}}}] at @s align xyz run summon minecraft:interaction ~.5 ~ ~.5 {Tags:["aom_click"],width:1.0f,height:1.0f,response:0b,data:{aom:{town:"$(name)",building:1,type:"townhall"}}}`,
+    "execute align xyz run " + waxSign("~ ~ ~"),
+    `$data modify storage aom:data towns.$(name).members.$(key) set value {}`,
+    `$data modify storage aom:data players.$(key).town set value "$(name)"`,
+    `$scoreboard players add $(name) aom.members 1`,
+    `$tag @s add aom_member_$(name)`,
+    `$function ${syncAllRef.name} {"town":"$(name)"}`,
+    `$function ${grantPlayerRef.name} {"town":"$(name)","key":"$(key)"}`,
+    `$function ${discoverScanRef.name} {"town":"$(name)","key":"$(key)"}`,
+    `$function ${renderSignsDispatch.name} {"town":"$(name)","building":1}`,
+    `$tellraw @a ${snbt([{ selector: "@s", color: "green" }, text(" founded the town of ", { color: "green" }), text("$(name)", { color: "aqua" }), text("!", { color: "green" })])}`,
+    `$data modify storage aom:tmp anchor set value {town:"$(name)",building:1,type:"townhall"}`,
+    `$function ${showBuildingMenu.name}`,
+  ]);
+
   const townFoundConfirm = d.defineFunction("town/found/confirm", [
     "data remove entity @s interaction",
     "data remove entity @s attack",
     `execute as @p[distance=..4] run function ${townFoundRun.name} with storage aom:tmp found`,
   ]);
 
-  // Left-click: cancel, hand the plan back and clear the site.
   const townFoundCancel = d.defineFunction("town/found/cancel", [
     "data remove entity @s interaction",
     "data remove entity @s attack",
@@ -1862,13 +2125,10 @@ export function build(): Datapack {
     "kill @s",
   ]);
 
-  // Polled each tick for every founding site, with its `data.aom` in scope.
   const townFoundCheckAt = d.defineFunction("town/found/check/at", [
-    // The sign is gone: hand the plan back and clean up the site.
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} at @s run summon minecraft:item ~ ~1 ~ {Item:${townhallPlanItem}}`,
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run kill @s`,
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run return fail`,
-    // Founding succeeded: an anchor now exists here, so remove the site.
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run kill @s`,
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run return fail`,
     `execute if data entity @s interaction.player run function ${townFoundConfirm.name} with storage aom:tmp found`,
@@ -1881,33 +2141,24 @@ export function build(): Datapack {
     `function ${townFoundCheckAt.name} with storage aom:tmp found`,
   ]);
 
-  // Set up the site at the sign the plan was placed on.
   const townFoundSite = d.defineFunction("town/found/site", [
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run tellraw @s ${snbt([text("You must place the plan on a sign.", { color: "red" })])}`,
     `$execute in $(dimension) unless block $(x) $(y) $(z) ${SIGN_BLOCK} run return fail`,
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run tellraw @s ${snbt([text("There is already a building at this sign.", { color: "red" })])}`,
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run return fail`,
     `$kill @e[type=minecraft:interaction,tag=aom_found,nbt={data:{aom:{x:$(x),y:$(y),z:$(z),dimension:"$(dimension)"}}}]`,
-    // Summon via a marker so the interaction sits exactly on the sign block.
     `$execute in $(dimension) run summon minecraft:marker $(x) $(y) $(z) {Tags:["aom_tmp_pos"]}`,
     `$execute in $(dimension) as @e[type=minecraft:marker,tag=aom_tmp_pos,limit=1] at @s align xyz run summon minecraft:interaction ~.5 ~ ~.5 {Tags:["aom_found"],width:1.0f,height:1.0f,response:0b,data:{aom:{x:$(x),y:$(y),z:$(z),dimension:"$(dimension)"}}}`,
     `$execute in $(dimension) run kill @e[type=minecraft:marker,tag=aom_tmp_pos]`,
     `$execute in $(dimension) unless entity @e[type=minecraft:interaction,tag=aom_found,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run tellraw @s ${snbt([text("[aom] The founding interaction was not created here.", { color: "red" })])}`,
     `$tellraw @s ${snbt([
       text("Townhall plan placed.\n", { color: "gold", bold: true }),
-      text("1. Write your town's name on the first line of the sign.\n", {
-        color: "gray",
-      }),
-      text("2. Right-click the sign to found your town and join it.\n", {
-        color: "gray",
-      }),
-      text("Left-click or break the sign to cancel (the plan is returned).", {
-        color: "dark_gray",
-      }),
+      text("1. Write your town's name on the first line of the sign.\n", { color: "gray" }),
+      text("2. Right-click the sign to found your town and join it.\n", { color: "gray" }),
+      text("Left-click or break the sign to cancel (the plan is returned).", { color: "dark_gray" }),
     ])}`,
   ]);
 
-  // In a town: a plan builds (or rebuilds) its building as before.
   const planBuild = d.defineFunction("plan/build", [
     "data remove storage aom:tmp place",
     `$data modify storage aom:tmp place.key set value "$(key)"`,
@@ -1928,36 +2179,124 @@ export function build(): Datapack {
     `$data modify storage aom:tmp found.z set from storage aom:data players.$(key).found.z`,
     `$data modify storage aom:tmp found.dimension set from storage aom:data players.$(key).found.dimension`,
     `$data remove storage aom:data players.$(key).found`,
-    // Already in a town: build the plan's building.
     `$execute if data storage aom:data players.$(key).town run function ${planBuild.name} with storage aom:tmp found`,
-    // Townless with a Townhall Plan: start a founding site.
     `$execute unless data storage aom:data players.$(key).town if data storage aom:tmp found{plan:"townhall"} run function ${townFoundSite.name} with storage aom:tmp found`,
-    // Townless with any other plan: nothing to build.
     `$execute unless data storage aom:data players.$(key).town unless data storage aom:tmp found{plan:"townhall"} run tellraw @s ${snbt([text("You are not in a town. Place a Townhall Plan to found one.", { color: "red" })])}`,
+  ]);
+
+  // -------------------------------------------------------------------------
+  // Special mechanics: mine depth and the Nether portal
+  // -------------------------------------------------------------------------
+
+  const depthTown = d.defineFunction("player/second/depth", [
+    "scoreboard players set #depth aom.tmp 62",
+    "scoreboard players set #lv aom.tmp 0",
+    `$execute store result score #lv aom.tmp run data get storage aom:data towns.$(town).jobs.leveller`,
+    "scoreboard players operation #lv aom.tmp *= 10 aom.tmp",
+    "scoreboard players operation #depth aom.tmp -= #lv aom.tmp",
+    "execute if score #depth aom.tmp matches ..-65 run scoreboard players set #depth aom.tmp -64",
+  ]);
+
+  const recordOverworld = d.defineFunction("player/second/overworld", [
+    `execute store result storage aom:data players.$(key).ow.x double 1 run data get entity @s Pos[0]`,
+    `execute store result storage aom:data players.$(key).ow.y double 1 run data get entity @s Pos[1]`,
+    `execute store result storage aom:data players.$(key).ow.z double 1 run data get entity @s Pos[2]`,
+    `data modify storage aom:data players.$(key).ow.dimension set from entity @s Dimension`,
+  ]);
+
+  const portalTeleport = d.defineFunction("player/second/teleport", [
+    `$execute in $(dimension) run tp @s $(x) $(y) $(z)`,
+    `tellraw @s ${snbt([text("The Nether is not researched yet. Staff a Portal at the University first.", { color: "red" })])}`,
+  ]);
+
+  const portalReturn = d.defineFunction("player/second/return", [
+    `execute if data storage aom:data towns.$(town).mechanics.portal run return 0`,
+    `execute unless data storage aom:data players.$(key).ow run return 0`,
+    "data remove storage aom:tmp ret2",
+    `data modify storage aom:tmp ret2.dimension set from storage aom:data players.$(key).ow.dimension`,
+    `data modify storage aom:tmp ret2.x set from storage aom:data players.$(key).ow.x`,
+    `data modify storage aom:tmp ret2.y set from storage aom:data players.$(key).ow.y`,
+    `data modify storage aom:tmp ret2.z set from storage aom:data players.$(key).ow.z`,
+    `function ${portalTeleport.name} with storage aom:tmp ret2`,
+  ]);
+
+  const netherCheck = d.defineFunction("player/second/nether", [
+    `execute unless data storage aom:data players.$(key).town run return 0`,
+    "data remove storage aom:tmp ret",
+    `data modify storage aom:tmp ret.town set from storage aom:data players.$(key).town`,
+    `data modify storage aom:tmp ret.key set value "$(key)"`,
+    `execute if data storage aom:tmp ret.town run function ${portalReturn.name} with storage aom:tmp ret`,
+  ]);
+
+  const secondCheck = d.defineFunction("player/second/check", [
+    "scoreboard players set #depth aom.tmp 62",
+    "data remove storage aom:tmp pstown",
+    `$data modify storage aom:tmp pstown.town set from storage aom:data players.$(key).town`,
+    `$data modify storage aom:tmp pstown.key set value "$(key)"`,
+    `execute if data storage aom:tmp pstown.town run function ${depthTown.name} with storage aom:tmp pstown`,
+    "scoreboard players set #y aom.tmp 0",
+    "execute store result score #y aom.tmp run data get entity @s Pos[1]",
+    "execute if score #y aom.tmp < #depth aom.tmp run effect give @s minecraft:mining_fatigue 3 0 true",
+    `execute if entity @s[nbt={Dimension:"minecraft:overworld"}] run function ${recordOverworld.name} with storage aom:tmp ps`,
+    `execute unless entity @s[nbt={Dimension:"minecraft:overworld"}] run function ${netherCheck.name} with storage aom:tmp ps`,
+  ]);
+
+  const playerSecond = d.defineFunction("player/second", [
+    `function ${playerKey.name}`,
+    "data remove storage aom:tmp ps",
+    "data modify storage aom:tmp ps.key set from storage aom:tmp player_key",
+    `function ${secondCheck.name} with storage aom:tmp ps`,
   ]);
 
   // -------------------------------------------------------------------------
   // Triggers, load and schedules
   // -------------------------------------------------------------------------
 
-  // `aom.menu` is the visible button bus: 1..999 opens the looked-at menu,
-  // 1000+ is an action, 2000+ is a build choice. The decoded value lands in the
-  // hidden dummy `aom.action`, which the handlers already read.
   const busAction = d.defineFunction("internal/triggers/menu/action", [
     "scoreboard players set @s aom.action 0",
     "scoreboard players operation @s aom.action = @s aom.menu",
     `scoreboard players remove @s aom.action ${ACTION_CODE}`,
-    // `ACTION_CODE` itself is the confirm "yes" button (the only negative
-    // action), since action indices start at 1.
     `execute if score @s aom.action matches 0 run scoreboard players set @s aom.action ${CONFIRM_ACTION}`,
     `function ${uiAction.name}`,
   ]);
 
+  const buildPrevRun = d.defineFunction("ui/build/prev/run", [
+    `$execute store result score #p aom.tmp run data get storage aom:data players.$(key).build_page`,
+    "scoreboard players remove #p aom.tmp 1",
+    `execute if score #p aom.tmp matches ..1 run scoreboard players set #p aom.tmp 1`,
+    `$execute store result storage aom:data players.$(key).build_page int 1 run scoreboard players get #p aom.tmp`,
+    `function ${buildShow.name} with storage aom:tmp bp`,
+  ]);
+
+  const buildNextRun = d.defineFunction("ui/build/next/run", [
+    `$execute store result score #p aom.tmp run data get storage aom:data players.$(key).build_page`,
+    "scoreboard players add #p aom.tmp 1",
+    `execute if score #p aom.tmp matches ${buildPageCount}.. run scoreboard players set #p aom.tmp ${buildPageCount}`,
+    `$execute store result storage aom:data players.$(key).build_page int 1 run scoreboard players get #p aom.tmp`,
+    `function ${buildShow.name} with storage aom:tmp bp`,
+  ]);
+
+  const buildPrev = d.defineFunction("ui/build/prev", [
+    `function ${playerKey.name}`,
+    "data remove storage aom:tmp bp",
+    "data modify storage aom:tmp bp.key set from storage aom:tmp player_key",
+    `function ${buildPrevRun.name} with storage aom:tmp bp`,
+  ]);
+
+  const buildNext = d.defineFunction("ui/build/next", [
+    `function ${playerKey.name}`,
+    "data remove storage aom:tmp bp",
+    "data modify storage aom:tmp bp.key set from storage aom:tmp player_key",
+    `function ${buildNextRun.name} with storage aom:tmp bp`,
+  ]);
+
   const busBuild = d.defineFunction("internal/triggers/menu/build", [
+    `$execute if score @s aom.menu matches ${BUILD_CODE + BUILD_PAGE_PREV} run function ${buildPrev.name}`,
+    `$execute if score @s aom.menu matches ${BUILD_CODE + BUILD_PAGE_NEXT} run function ${buildNext.name}`,
     "scoreboard players set @s aom.action 0",
     "scoreboard players operation @s aom.action = @s aom.menu",
     `scoreboard players remove @s aom.action ${BUILD_CODE}`,
-    `function ${buildSet.name}`,
+    `execute if score @s aom.action matches 1..${BUILD_MENU_BUILDINGS.length} run function ${buildSet.name}`,
   ]);
 
   const triggers = {
@@ -1969,15 +2308,8 @@ export function build(): Datapack {
     townInfo: d.defineFunction("internal/triggers/town_info", [
       `function ${townInfo.name}`,
     ]),
-    guide: d.defineFunction("internal/triggers/guide", [
-      `function ${guide.name}`,
-    ]),
+    guide: d.defineFunction("internal/triggers/guide", [`function ${guide.name}`]),
   };
-
-  const minute = d.defineFunction(
-    "minute",
-    eachAnchor(`function ${jobsGenerate.name}`),
-  );
 
   const second = d.ref("second");
   const refresh = d.ref("refresh");
@@ -1987,6 +2319,7 @@ export function build(): Datapack {
     "scoreboard players add #seconds aom.tmp 1",
     `execute if score #seconds aom.tmp matches 60.. run function ${minute.name}`,
     "execute if score #seconds aom.tmp matches 60.. run scoreboard players set #seconds aom.tmp 0",
+    `execute as @a run function ${playerSecond.name}`,
   ]);
 
   d.defineFunction(refresh.path, [
@@ -2002,6 +2335,7 @@ export function build(): Datapack {
     ]),
     "",
     `execute as @a[scores={aom.left=1..}] run function ${playerJoin.name}`,
+    `execute as @a[tag=!${READY_TAG}] run function ${starter.name}`,
     `execute as @e[type=minecraft:interaction,tag=aom_click] at @s run function ${clickCheck.name}`,
     `execute as @e[type=minecraft:interaction,tag=aom_found] at @s run function ${townFoundCheck.name}`,
     `function ${buildScan.name}`,
@@ -2015,9 +2349,6 @@ export function build(): Datapack {
     objectiveAdd("aom.players.ray", "dummy"),
     objectiveAdd("aom.tmp", "dummy"),
     objectiveAdd("aom.left", "minecraft.custom:minecraft.leave_game"),
-    // Hidden button values are plain scores now; the buttons carry them through
-    // the visible aom.menu trigger. Drop the old trigger objectives so
-    // upgrading worlds stop completing them.
     "scoreboard objectives remove aom.action",
     "scoreboard objectives remove aom.build",
     "scoreboard objectives remove aom.page",
@@ -2027,12 +2358,15 @@ export function build(): Datapack {
     objectiveAdd("aom.guide", "trigger"),
     objectiveAdd("aom.action", "dummy"),
     "",
+    gamerule("limited_crafting", true),
+    "",
     "scoreboard players set 576 aom.tmp 576",
     "scoreboard players set 8 aom.tmp 8",
+    "scoreboard players set #min aom.tmp 0",
+    "scoreboard players set #seconds aom.tmp 0",
     "",
-    ...PLANS.map(
-      (plan) => `advancement revoke @a only aom:plan_${plan.id}_place`,
-    ),
+    ...PLANS.map((plan) => `advancement revoke @a only aom:plan_${plan.id}_place`),
+    ...RESOURCES.map((res) => `advancement revoke @a only aom:discover/${res.id}`),
     "",
     scheduleFunction(second, "1s"),
     scheduleFunction(refresh, "1s"),
@@ -2067,6 +2401,8 @@ export function build(): Datapack {
       "aom:tmp confirm",
       "aom:tmp ctx",
       "aom:tmp det",
+      "aom:tmp disc",
+      "aom:tmp disc2",
       "aom:tmp do",
       "aom:tmp found",
       "aom:tmp give",
@@ -2075,9 +2411,13 @@ export function build(): Datapack {
       "aom:tmp key",
       "aom:tmp place",
       "aom:tmp player_key",
+      "aom:tmp ps",
+      "aom:tmp pstown",
+      "aom:tmp req",
+      "aom:tmp ret",
+      "aom:tmp ret2",
       "aom:tmp summary",
       "aom:tmp town",
-      "aom:tmp unlock",
     ],
     kill: [
       "@e[type=minecraft:marker,tag=aom_anchor]",
@@ -2085,6 +2425,7 @@ export function build(): Datapack {
       "@e[type=minecraft:interaction,tag=aom_click]",
       "@e[type=minecraft:interaction,tag=aom_found]",
     ],
+    tags: [READY_TAG],
     schedules: ["aom:second", "aom:refresh"],
   });
 

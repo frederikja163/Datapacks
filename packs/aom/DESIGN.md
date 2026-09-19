@@ -8,7 +8,6 @@ and unlocking recipes for every member.
 Each craft should always consist of one plank that determines the type of sign. For example spruce plank = spruce sign.
 And another item that is specified below (townhouse is two planks of the same type).
 
-Every time a building is destroyed (except townhall) its resources should be removed appropriately.
 A building can have a few different attributes:
  - Add villagers: Ability to add villagers
  - Unlock: As long as enough villagers are hired (default 1) this is unlocked for all people in the village
@@ -169,8 +168,13 @@ The harbour. Builds boats and rafts.
  - Unlock (Shipwright): the boat and harbour recipes below
 
 Unlocks (Shipwright, 1 villager):
- - all boats and rafts (`oak_boat` … `bamboo_raft`)
- - all chest boats (`oak_chest_boat` … `bamboo_chest_raft`)
+ - boats: `oak_boat`, `spruce_boat`, `birch_boat`, `jungle_boat`, `acacia_boat`,
+   `dark_oak_boat`, `mangrove_boat`, `cherry_boat`, `pale_oak_boat`,
+   `poplar_boat`, `bamboo_raft`
+ - chest boats: `oak_chest_boat`, `spruce_chest_boat`, `birch_chest_boat`,
+   `jungle_chest_boat`, `acacia_chest_boat`, `dark_oak_chest_boat`,
+   `mangrove_chest_boat`, `cherry_chest_boat`, `pale_oak_chest_boat`,
+   `poplar_chest_boat`, `bamboo_chest_raft`
  - `conduit`
 
 ### Ice House

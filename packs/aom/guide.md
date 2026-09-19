@@ -1,248 +1,163 @@
 # Age of Minecraft — Player Guide
 
-AOM is a village-building datapack. You name a town, build its townhall, grow it with buildings, staff jobs, and the town works for you: producing resources, storing them, and unlocking recipes for every member.
+AOM is a village-building datapack. You name a town, build its townhall, grow it
+with buildings, staff jobs, and the town works for you: producing resources,
+storing them, and unlocking recipes for every member.
 
-Everything is driven by **`/trigger` commands** and clickable chat menus, so you never need operator permissions. There is no custom mod — signs are the world UI.
+Everything is driven by **`/trigger` commands** and clickable chat menus, so you
+never need operator permissions. There is no custom mod — signs are the world UI.
 
-The same guide is available in game: `/trigger aom.guide` opens this guide page by page in chat with `[<]` and `[>]` buttons.
+The same guide is available in game: `/trigger aom.guide` opens it page by page
+with `[<]` and `[>]` buttons.
 
 ## Quick start
 
-1. Craft a **Townhall Plan** (2 oak planks + dirt) and place it. A message tells you what to do.
-2. Write your **town name** on the sign's first line.
-3. **Right-click the sign** to found the town. The sign becomes your **townhall**, you join automatically, and its menu opens in chat. (Left-click or break the sign to cancel.)
-4. Place another **sign** (leave it blank or write a label), look at it and run `/trigger aom.menu`. Pick **Lumbermill** from the menu.
-5. Stand at the lumbermill's sign and run `/trigger aom.menu`. Hire an **Oak cutter** (generates wood), an **Oak banker** (adds storage), and a **Tool crafter** (unlocks wooden tool recipes).
-6. Deposit and withdraw oak logs from the lumbermill menu. While the chunk stays loaded, oak logs accumulate once per minute per Oak cutter.
+1. Craft a **Townhall Plan** (a plank + sapling) and place it on a sign.
+2. Write your **town name** on the sign's first line (letters, numbers and
+   underscores only, unique).
+3. **Right-click the sign** to found the town. You join automatically and the
+   townhall menu opens. (Left-click or break the sign to cancel.)
+4. Craft a **plan** for any other building (one plank plus the building's item)
+   and place it where you want it. The plank's wood decides the sign you get,
+   e.g. spruce planks make a spruce sign.
+5. Stand at a building and run `/trigger aom.menu` to staff its jobs.
+6. Hire **collectors** to generate resources and **bankers** to store them.
+   Unlock jobs grant recipe knowledge to every town member.
 
 ## Commands
 
-Every command is a trigger, usable by any player.
-
 | Command | What it does |
 | --- | --- |
-| `/trigger aom.guide` | Prints this guide in chat, one page at a time, with `[<]` and `[>]` page buttons. |
-| `/trigger aom.town_info` | Prints your town's information in chat, one page at a time, with `[<]` and `[>]` page buttons. |
-| `/trigger aom.menu` | Raycasts to the sign you are looking at. Opens that building's menu, or the build menu if the sign has no building yet. |
+| `/trigger aom.guide` | Prints this guide in chat with page buttons. |
+| `/trigger aom.town_info` | Prints your town's information in chat. |
+| `/trigger aom.menu` | Opens the looked-at building's menu, or the build menu. |
 
-Chat menu buttons run through `/trigger aom.menu` for you; you never type those hidden values yourself.
+## Crafting is gated
 
-## The world UI
+The pack enables the `limited_crafting` gamerule. You can only craft recipes
+your character knows:
 
-### Signs (industrial buildings)
+- **Plans** are recipes too. If a plan is gated, you cannot craft it until the
+  town's prerequisite job is staffed.
+- **Unlocks** grant their recipes to every member of the town while staffed.
+- Recipes listed under more than one building need **all** of those jobs
+  staffed (for example `shears` needs Blacksmith and Shepherd).
+- Recipes are re-synced when jobs change, when you join, and when a town is
+  packed or deleted. Leaving a town takes its recipes back.
 
-A town has exactly one **townhall**. If its sign or block is destroyed, place a new sign, look at it and run `/trigger aom.menu`, then pick **Townhall** to rebuild it.
-
-A building anchor is a **waxed sign** that you cannot edit. Its text updates itself every few seconds and always shows the building's live state:
+Building **requirements** use this same mechanism: some plans are locked until
+another building's unlock job is staffed (see the map below).
 
 ```
-Lumbermill
-Oak cutters 2
-Oak 1024/1728
-MyTown
+Blacksmith -> Coppersmith -> Gold smith -> Jeweller
+Library -> School -> University
+Farm unlocks all windmill plans
 ```
-
-- **Line 1** — the building type.
-- **Line 2** — the first generation job and how many workers it has.
-- **Line 3** — the first resource and its stored / capacity amount.
-- **Line 4** — the town that owns the building.
-
-### Townhall sign
-
-The townhall is a **waxed sign** that shows the town's population and member count. It is the town's anchor and menu: look at it and run `/trigger aom.menu` for Join/Leave/Delete town/Town info. (The townhall itself provides no villagers.)
-
-For the full town report (population, members, buildings, jobs and storage), open the townhall menu and click **Town info** to print it in chat page by page.
 
 ## Towns
 
-### Founding a town
-
-- Craft a **Townhall Plan** (2 oak planks + dirt) and place it. A chat message walks you through founding.
-- Type the town name on the **first line** of the sign, then **right-click the sign** to found the town.
-- Names must be unique and may only use letters, numbers and underscores; keep them to 16 characters or fewer.
-- The sign is kept (waxed) as the townhall, and the founding is announced to the server.
-- You become the town's first member automatically, and its townhall menu opens so you can manage it.
-- **Cancel** a founding by left-clicking the sign, or by breaking it; the Townhall Plan is returned.
-
-### Joining and leaving
-
-- Stand at the townhall sign, run `/trigger aom.menu` and click **Join town**.
-- You belong to **one town at a time**: joining a new town leaves your old one first.
-- Click **Leave town** in the same menu to leave without joining another.
-- Members are tagged so the town can find them. Members are **not** workers.
-
-### Town population
-
-| Value | Meaning |
-| --- | --- |
-| **Population** | Sum of every townhouse's villagers in the town. |
-| **Employed** | Sum of all staffed jobs across the town's buildings. |
-| **Unemployed** | `Population − Employed`. It can be negative, and it is never stored anywhere. |
-
-Hiring is only allowed while **Unemployed is positive**. Jobs are permanent, so if you over-hire, unemployed goes negative until more townhouses raise the population.
-
-### Townhouses (villagers)
-
-You can build **townhouses** with `/trigger aom.menu`. Each one:
-
-- adds **+1 villager** to the town by default,
-- has its own **Add villager** / **Remove villager** buttons in its menu (free and unlimited for now),
-- is a waxed sign with its own menu: **Add villager** / **Remove villager** / **Delete building**.
-
-Packing a townhouse keeps its villagers in the town's population until it is rebuilt.
-
-### Deleting a town
-
-- Only possible for the **last remaining member**, and it asks for confirmation.
-- Deleting removes every building sign and all town data.
-
-## Buildings
-
-There are two ways to build:
-
-- **Craft a plan** (a cheap block + 1 stick; it comes out as a sign) and **place it** where you want the building — floor or wall. That sign becomes the building's anchor and the building is created there. While not in a town, plans tell you to join one first.
-- Or place a sign, look at it and run `/trigger aom.menu`, then pick a type. (The Townhall entry rebuilds the townhall; founding a *new* town needs a Townhall Plan placed outside a town.)
-
-Either way the sign is waxed, labelled and becomes the building's anchor. The same position can only hold one building, and the sign must still be there.
-
-| Building | Category | What it is for |
-| --- | --- | --- |
-| **Townhall** | Townhall | Anchors the town and manages membership. Provides no villagers. |
-| **Townhouse** | Townhouse | Provides villagers to the town (adjustable). |
-| **Lumbermill** | Industrial | Jobs that unlock recipes, generate oak logs and store them. |
-
-### Removing a building
-
-- **Right-click the building's sign** to open its menu, then choose **Delete building** (with a confirmation). Its **plan** is dropped at the sign, and placing it rebuilds that building elsewhere with the same workers/villagers and storage.
-- Packing does **not** change the town's population or employment: a packed building keeps its staff (and storage) for when it is rebuilt.
-- Packed buildings **stack per type**. Each plan you place rebuilds the most recently packed building of its type, so you can tear down several and rebuild them one by one.
-- If its sign is destroyed some other way (explosion, piston), the once-per-second scan packs it the same way and drops its plan at the sign.
+- **Found** with a Townhall Plan: place it, write the name on the first line,
+  then right-click. You can cancel by breaking the sign (the plan is returned).
+- You belong to **one town at a time**; joining another leaves the first.
+- **Population** is the sum of every townhouse's villagers.
+- **Employed** is every staffed job. Hiring needs Population above Employed.
+- Only the **last member** can delete a town, after a confirmation.
+- Members are tagged so the town can find them; members are not workers.
 
 ## Jobs
 
-A building's menu lists its jobs. Jobs are hired with a button and are **permanent** — a worker can never be fired.
+Jobs are **permanent** — a worker can never be fired.
 
-| Kind | Max workers | Effect while staffed |
+| Kind | Limit | Effect |
 | --- | --- | --- |
-| **Unlock** | 1 | Grants a named unlock to the whole town (recipes, permissions). |
-| **Generation** | Unlimited | Each worker adds its rate to the building's storage every minute. |
-| **Storage** | Unlimited | Each worker adds capacity for its resource. |
+| **Unlock** | its requirement (1, 2 or 5) | Grants recipes to the whole town. |
+| **Generation** | Unlimited | Adds the resource at the collector's rate. |
+| **Storage** | Unlimited | Adds capacity for its resource. |
+| **Mechanic** | varies | Levellers, the University Portal, or hired help. |
 
-A building can mix all three. The lumbermill is the reference example:
+## Storage and generation
 
-| Job | Kind | Limit | Resource | Amount |
-| --- | --- | --- | --- | --- |
-| Tool crafter | Unlock | 1 | — | Unlocks the wooden tool recipes |
-| Oak cutter | Generation | Unlimited | Oak logs | 1 per minute per worker |
-| Oak banker | Storage | Unlimited | Oak logs | +576 capacity per worker |
+- Each building keeps its own storage, per resource. Capacity starts at **0**;
+  hire storage workers (bankers) to hold anything. Bankers give **+576**
+  (8 stacks) per worker.
+- Generation is capped by capacity; anything over the cap is discarded.
+- Deposit and Withdraw move **1**, **16**, **64** or **all**.
+- Generation rates run from **1 / minute** (bulk materials) through
+  **1 / 2**, **1 / 5**, **1 / 10** up to **1 / 20 minutes** (rare finds).
+- The mine rolls a weighted ore table; the quarry has a digger per stone; the
+  butcher and fisher have their own tables.
+- Only loaded chunks produce, and there is no catch-up for time away.
 
-### Hiring
+### Discovery
 
-- **Hire** spends one unemployed villager; if there are none, nothing happens and you are told.
-- Unlock jobs stop at one worker. Generation and storage jobs have no limit.
-- Hiring is permanent — there is no way to unassign a worker.
+A storage resource is **locked** until your town has obtained at least one of
+it. Pick the item up yourself once and the whole town discovers it. Until then
+you cannot hire its collectors or bankers, nor deposit into it. Grouped
+storages (the mine's ores, the fisher's fish) unlock one item at a time.
 
-## Storage
+## House types
 
-Each building keeps its own storage, per resource.
+Every plan uses **one plank** that decides the sign type — oak planks give an
+oak sign, spruce planks a spruce sign, and so on. Townhouses use two planks.
+Place the sign first, then use the plan on it (or look at the sign and use
+`/trigger aom.menu`).
 
-- `capacity = base + per_worker × workers`, and the base is **0** — a building with no storage workers cannot hold anything.
-- **Generation is capped by capacity**; anything over the cap is discarded.
-- **Deposit** takes items out of your inventory, up to the free space and what you are carrying.
-- **Withdraw** gives you items up to what is stored.
-- Buttons are available for **1**, **16**, **64** and **all**.
+## Special mechanics
 
-Storage only exists per building: two lumbermills do not share logs, and deleting a building drops its contents.
+### Mine depth
 
-## Unlocks
+Players have **mining fatigue** below y=62. Each staffed Mine **Leveller**
+lifts the limit by 10 levels, down to the world floor at y=-64.
 
-An unlock is active while its unlock job is staffed — it is simply on or off because those jobs hold exactly one worker.
+### University Portal
 
-- Effects are defined in the registry. Today the only effect is **recipes**, granted with `recipe give` and removed with `recipe take`.
-- Every member of the town gets the recipes, and they are re-synced whenever a job changes, when someone joins, and when a town is left.
-- The lumbermill's **Tool crafter** unlocks the wooden axe, hoe, pickaxe, shovel and sword recipes for the whole town.
+Portals can always be lit, but until a **Portal** is staffed at the University,
+a town member who enters the Nether is immediately returned to their last
+overworld position. The pack records that position once a second, so the return
+point is always valid. When the job is staffed, travel works normally.
+
+## Buildings
+
+Each building can have unlock, generation, storage and mechanic jobs. The table
+below lists what each building provides; exact recipes and rates are in
+`DESIGN.md`.
+
+| Category | Buildings |
+| --- | --- |
+| Civic | Townhall, Townhouse |
+| Extraction | Lumbermill, Mine, Quarry, Docks, Ice House |
+| Industry | Stone cutter, Blacksmith, Gold smith, Jeweller, Coppersmith, Kiln, Mason's Yard |
+| Agriculture | Farm, Wheat/Carrot/Potato/Beetroot/Melon/Pumpkin/Sugar cane windmills |
+| Husbandry | Barn, Leather tanner, Shepherd, Spinnery, Weaver, Apiary |
+| Food | Baker, Butcher, Brewery, Fisher |
+| Crafting | Weapon smith, Fletcher, Glass blower, Painter, Redstone Workshop, Bard, Armory |
+| Knowledge | Library, School, University, Cartographer's Guild, End Observatory |
+| Special | Custom |
+
+## Removing buildings
+
+Open a building's menu and choose **Delete building**. Its plan is dropped at
+the sign, and placing it rebuilds the building elsewhere with the same workers,
+villagers and storage. Packed buildings stack per type, newest first. If a sign
+is broken some other way, the once-per-second scan packs it the same way.
 
 ## How the town ticks
 
-- **Every tick** — your `/trigger` inputs are read and handled.
-- **Every second** — each building's anchor block is checked; if it was broken, the building is removed. A minute counter advances.
-- **Every minute** — generation jobs add `rate × workers` to storage, clamped to capacity.
-- **Every second** — sign text is rewritten.
-
-### The chunk rule
-
-Generation, anchor checks and rendering only visit **loaded chunks**. A building produces only while its chunk is loaded, and there is **no catch-up** for time you were away.
-
-If you want a town to keep producing while nobody is nearby, `/forceload add` the area around it.
-
-## The menus
-
-### Townhall menu
-
-Look at the townhall sign and run `/trigger aom.menu`.
-
-| Button | Effect |
-| --- | --- |
-| Join town | Joins the town (leaving any previous town first). |
-| Leave town | Leaves the town. Jobs stay staffed. |
-| Delete town | Asks for confirmation, then removes all anchors and town data (last member only). |
-| Town info | Prints the town pages in chat. |
-
-### Townhouse menu
-
-Look at a townhouse sign and run `/trigger aom.menu`. You must be a member of the town that owns it.
-
-| Button | Effect |
-| --- | --- |
-| Add villager | This townhouse contributes one more villager. |
-| Remove villager | This townhouse contributes one fewer villager. |
-| Delete building | Asks for confirmation, then removes the townhouse (and its villagers). |
-
-### Lumbermill menu
-
-Open by looking at the lumbermill sign and running `/trigger aom.menu`. You must be a member of the town that owns it.
-
-| Button | Effect |
-| --- | --- |
-| Hire Tool crafter | Unlocks the wooden tool recipes (max one worker, permanent). |
-| Hire Oak cutters | Adds oak log generation (permanent). |
-| Hire Oak bankers | Adds oak log storage capacity (permanent). |
-| Deposit 1 / 16 / 64 / all Oak | Moves oak logs from your inventory into the building. |
-| Withdraw 1 / 16 / 64 / all Oak | Moves oak logs from the building into your inventory. |
-| Delete building | Asks for confirmation, then removes the building. |
-
-Destructive buttons open a generic **Are you sure?** dialog with Yes / Cancel.
+- **Every tick** — triggers are read, buildings whose sign vanished are packed,
+  and players without the starter recipes are set up.
+- **Every second** — mine depth and the Portal are enforced, overworld return
+  points are recorded, and a minute counter advances.
+- **Every minute** — generation runs for the jobs whose interval is due.
+- **Every 2 seconds** — sign text is rewritten.
 
 ## Tips and troubleshooting
 
-- **"You must look at a sign"** — stand close and aim directly at the sign before running the trigger. (`/trigger aom.menu` only needs you to stand next to the building.)
-- **Town name rejected** — only letters, numbers and underscores are allowed, and the name must not already exist.
-- **"Found a town first"** — build on a sign with `/trigger aom.menu` only after you have founded or joined a town.
-- **"You have no unemployed villagers"** — your population must be larger than the number of staffed jobs. Build townhouses to raise population.
-- **Nothing generates** — the generation job must have workers, the resource needs capacity from storage workers, and the chunk must be loaded. Generation is one batch per minute.
-- **"Nothing can be deposited"** — the building is at capacity (hire storage workers) or you are not carrying the resource.
-- **Recipes are missing** — the unlock job must still be staffed. Recipes are re-synced when jobs change and when you rejoin the town.
-- **A building vanished** — its anchor block was broken or replaced with a different block.
-- **"This building belongs to another town"** — you can only open the menu of a building owned by your own town.
-
-## Reference
-
-### Buildings and jobs
-
-| Building | Job | Kind | Resource | Amount |
-| --- | --- | --- | --- | --- |
-| Townhouse | — | — | — | +1 villager (adjustable) |
-| Lumbermill | Tool crafter | Unlock | — | Wooden tool recipes |
-| Lumbermill | Oak cutter | Generation | Oak logs | 1 per minute per worker |
-| Lumbermill | Oak banker | Storage | Oak logs | +576 capacity per worker |
-| Lumbermill | — | Storage base | — | 0 |
-
-### Unlocked recipes
-
-The Tool crafter grants all members:
-
-- Wooden axe
-- Wooden hoe
-- Wooden pickaxe
-- Wooden shovel
-- Wooden sword
+- **"You must look at a sign"** — stand close and aim straight at the sign.
+- **"No unemployed villagers"** — population must exceed staffed jobs; build
+  townhouses.
+- **"You have not discovered this resource yet"** — pick the item up once.
+- **Recipe missing** — the unlock job must still be staffed, or a multi-building
+  requirement is unmet.
+- **Blocked below y=62** — staff a Mine Leveller.
+- **Sent back from the Nether** — staff the University Portal.
+- **A building vanished** — its anchor block was broken; the plan is dropped.

@@ -1,5 +1,6 @@
-import type { ItemId } from "../../../mcgen/src/index.ts";
+import { ITEMS, type ItemId } from "../../../mcgen/src/index.ts";
 import { RECIPES } from "../../../mcgen/src/models/recipes.generated.ts";
+import { ITEM_IDS } from "../../../mcgen/src/models/items.generated.ts";
 
 // ---------------------------------------------------------------------------
 // AOM registry
@@ -146,7 +147,7 @@ export const RESOURCES: readonly Resource[] = [
   res("white_wool", "White wool", "minecraft:white_wool"),
   res("honeycomb", "Honeycomb", "minecraft:honeycomb"),
 
-  res("raw_beef", "Raw beef", "minecraft:raw_beef"),
+  res("raw_beef", "Raw beef", "minecraft:beef"),
   res("porkchop", "Raw porkchop", "minecraft:porkchop"),
   res("chicken", "Raw chicken", "minecraft:chicken"),
   res("mutton", "Raw mutton", "minecraft:mutton"),
@@ -1337,4 +1338,11 @@ if (unknown.length) {
   throw new Error(
     `Unknown vanilla recipes:\n${unknown.sort().join("\n")}`,
   );
+}
+
+/** Validates every item in the shared model against the generated registry. */
+const ITEM_SET = new Set<string>(ITEM_IDS);
+const unknownItems = ITEMS.filter((id) => !ITEM_SET.has(id));
+if (unknownItems.length) {
+  throw new Error(`Unknown vanilla items:\n${unknownItems.join("\n")}`);
 }

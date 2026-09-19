@@ -104,7 +104,7 @@ export const ITEMS = [
   "minecraft:pufferfish",
   "minecraft:pumpkin",
   "minecraft:rabbit",
-  "minecraft:raw_beef",
+  "minecraft:beef",
   "minecraft:raw_copper",
   "minecraft:raw_gold",
   "minecraft:raw_iron",

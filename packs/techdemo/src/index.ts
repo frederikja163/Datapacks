@@ -224,11 +224,11 @@ const NODES: readonly Node[] = [
     "frame": "task"
   },
   {
-    "id": "windmills",
-    "parent": "cat_agriculture",
+    "id": "windmill",
+    "parent": "farm",
     "icon": "minecraft:hay_block",
-    "title": "Windmills",
-    "description": "Windmills",
+    "title": "Windmill",
+    "description": "Windmill",
     "frame": "task"
   },
   {

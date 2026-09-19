@@ -21,7 +21,7 @@ A building can have a few different attributes:
 | Civic | Townhall, Townhouse |
 | Extraction | Lumbermill, Mine, Quarry, Docks, Ice House, Nether Outpost |
 | Industry | Stone cutter, Blacksmith, Gold smith, Jeweller, Coppersmith, Kiln, Mason's Yard |
-| Agriculture | Farm, all Windmills |
+| Agriculture | Farm, Windmill |
 | Husbandry | Barn, Leather tanner, Shepherd, Spinnery, Weaver, Apiary |
 | Food | Baker, Butcher, Brewery, Fisher |
 | Crafting | Weapon smith, Fletcher, Glass blower, Painter, Redstone Workshop, Bard, Armory |
@@ -72,7 +72,6 @@ cannot hire its collectors or bankers.
 | 1 / minute | bulk raw materials | logs, cobblestone, gravel, sand, crops, ice, snow |
 | 1 / 2 minutes | animal and farm products | fish, raw meat, wool, nether quartz |
 | 1 / 5 minutes | slow animal products | honeycomb, glowstone dust |
-| 1 / 10 minutes | rare finds | tropical fish, pufferfish |
 | 1 / 20 minutes | precious finds | ancient debris |
 
 Multi-resource collectors (the mine, the butcher, the fisher) roll a weighted
@@ -250,7 +249,7 @@ Unlocks (Blacksmith, 1 villager):
  - `bucket` (also Farm)
  - `shears` (also Shepherd)
  - `saddle` (also Leather tanner, Barn)
- - `flint_and_steel` (also School)
+ - `flint_and_steel` (also University)
  - `shield` (also Weaver)
  - `iron_helmet` (also Armory), `iron_chestplate` (also Armory),
    `iron_leggings` (also Armory), `iron_boots` (also Armory)
@@ -362,32 +361,26 @@ Unlocks (Mason, 1 villager):
 ### Farm
 Used to unlock simple farming recipes
  - Craft: Dirt
- - Unlock (farmer): bucket, hoes, all windmills
+ - Unlock (farmer): bucket, hoes, windmill
 
 Unlocks (Farmer, 1 villager):
  - `bucket` (also Blacksmith)
  - hoes: `wooden_hoe`, `stone_hoe` (also Stone cutter),
    `iron_hoe` (also Blacksmith), `golden_hoe` (also Gold smith),
    `diamond_hoe` (also Jeweller), `netherite_hoe` (also Jeweller)
- - windmill building plans: `aom:plan/wheat_windmill`,
-   `aom:plan/carrot_windmill`, `aom:plan/potato_windmill`,
-   `aom:plan/beetroot_windmill`, `aom:plan/melon_windmill`,
-   `aom:plan/pumpkin_windmill`, `aom:plan/sugar_cane_windmill`
+ - windmill building plan: `aom:plan/windmill`
 
-### Windmills
-Used for farming a single crop. No recipe unlocks.
- - Craft: the crop's seed/item + planks
- - Storage (crop farmer): the crop — 1 / minute
-
-| Windmill | Craft | Stores |
-| --- | --- | --- |
-| Wheat windmill | Wheat | wheat |
-| Carrot windmill | Carrot | carrot |
-| Potato windmill | Potato | potato |
-| Beetroot windmill | Beetroot seed | beetroot |
-| Melon windmill | Melon seed | melon slice |
-| Pumpkin windmill | Pumpkin | pumpkin |
-| Sugar cane windmill | Sugar cane | sugar cane |
+### Windmill
+Farms and stores every crop. No recipe unlocks.
+ - Craft: Wheat
+ - Requires: Farm
+ - Storage (wheat farmer): wheat — 1 / minute
+ - Storage (carrot farmer): carrot — 1 / minute
+ - Storage (potato farmer): potato — 1 / minute
+ - Storage (beetroot farmer): beetroot — 1 / minute
+ - Storage (melon farmer): melon slice — 1 / minute
+ - Storage (pumpkin farmer): pumpkin — 1 / minute
+ - Storage (sugar cane farmer): sugar cane — 1 / minute
 
 ---
 
@@ -503,13 +496,22 @@ Unlocks (Brewer, 1 villager):
 ### Fisher
 Fishes for the city
  - Craft: Any fish
- - Unlock (Fisher): fishing rods
+ - Unlock (Fisher): the fishing recipes below
+ - Storage (fisher): one weighted catch per collector every 2 minutes
 
 Unlocks (Fisher, 1 villager):
  - `fishing_rod`
  - `carrot_on_a_stick`, `warped_fungus_on_a_stick`
- - Storage (fisher): cod / salmon — 1 / 2 minutes; tropical fish /
-   pufferfish — 1 / 10 minutes
+
+| Catch | Chance | Per day (1 fisher) |
+| --- | --- | --- |
+| cod | 55% | 5.5 |
+| salmon | 32% | 3.2 |
+| pufferfish | 8% | 0.8 |
+| tropical fish | 4% | 0.4 |
+| nothing | 1% | 0.1 |
+
+> Each collector rolls once every 2 minutes and stores the catch; if there is no storage space for it, it is lost. A fisher rolls 10 times per Minecraft day, so "per day" is `chance × 10`. Every catch must be discovered (pick up 1 of that fish) before it can be stored.
 
 ---
 
@@ -621,10 +623,10 @@ Unlocks (Enchanter, 1 villager):
 Teaches the town's basics
  - Craft: Bookshelf
  - Requires: Library
- - Unlock (Teacher): the school recipes below
+ - Unlock (Teacher): unlocks the University plan
 
 Unlocks (Teacher, 1 villager):
- - `flint_and_steel` (also Blacksmith)
+ - `aom:plan/university`
 
 ### University
 Research different technologies
@@ -634,8 +636,8 @@ Research different technologies
  - Unlock (Portal): lets town members travel through Nether portals
 
 Unlocks (Firekeeper, 1 villager):
+ - `flint_and_steel` (also Blacksmith)
  - `fire_charge`
- - `ender_chest` (also End Observatory)
 
 Portal (1 villager, mechanic — not a recipe):
  - Portals can always be lit and entered, but while Portal is unstaffed a town
@@ -667,7 +669,7 @@ Unlocks (Astronomer, 1 villager):
  - `purpur_block`, `purpur_pillar`, `purpur_stairs`, `purpur_slab`
  - `end_stone_bricks`, `end_stone_brick_stairs`, `end_stone_brick_slab`,
    `end_stone_brick_wall`
- - `end_rod`, `ender_chest` (also University), `eye_of_ender` (also Nether Outpost)
+ - `end_rod`, `ender_chest`, `eye_of_ender` (also Nether Outpost)
  - `shulker_box` and all 16 coloured shulker boxes
  - `end_crystal` (also Glass blower)
  - `beacon` (also Glass blower)
@@ -704,7 +706,7 @@ job staffed.
 | --- | --- |
 | `furnace` | Stone cutter, Blacksmith |
 | `bucket` | Blacksmith, Farm |
-| `flint_and_steel` | Blacksmith, School |
+| `flint_and_steel` | Blacksmith, University |
 | `shears` | Blacksmith, Shepherd |
 | `cauldron` | Blacksmith, Brewery |
 | `saddle` | Blacksmith, Leather tanner, Barn |
@@ -735,7 +737,6 @@ job staffed.
 | `note_block` | Redstone Workshop, Bard |
 | `target` | Redstone Workshop, Fletcher |
 | `daylight_detector` | Redstone Workshop, Glass blower |
-| `ender_chest` | University, End Observatory |
 | `eye_of_ender` | Nether Outpost, End Observatory |
 | `netherite_upgrade_smithing_template` | Jeweller, Nether Outpost |
 | `stone_hoe` | Stone cutter, Farm |
@@ -785,12 +786,17 @@ can be hired.
 | Nether Outpost | nether quartz | nether miner | 1 / 2 minutes |
 | Nether Outpost | glowstone dust | glow harvester | 1 / 5 minutes |
 | Nether Outpost | ancient debris | debris miner | 1 / 20 minutes |
-| Windmills | the crop | crop farmer | 1 / minute |
+| Windmill | wheat | wheat farmer | 1 / minute |
+| Windmill | carrot | carrot farmer | 1 / minute |
+| Windmill | potato | potato farmer | 1 / minute |
+| Windmill | beetroot | beetroot farmer | 1 / minute |
+| Windmill | melon slice | melon farmer | 1 / minute |
+| Windmill | pumpkin | pumpkin farmer | 1 / minute |
+| Windmill | sugar cane | sugar cane farmer | 1 / minute |
 | Shepherd | white wool | shearer | 1 / 2 minutes |
 | Apiary | honeycomb | beekeeper | 1 / 5 minutes |
 | Butcher | raw meats (weighted) | butcher | 1 / 2 minutes |
-| Fisher | cod, salmon | fisher | 1 / 2 minutes |
-| Fisher | tropical fish, pufferfish | fisher | 1 / 10 minutes |
+| Fisher | fish (weighted roll) | fisher | 1 / 2 minutes |
 
 Only these buildings generate: they all extract or harvest something that grows
 or drops in the world. Every other building (Docks, Stone cutter, Coppersmith,

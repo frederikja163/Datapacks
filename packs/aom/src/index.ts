@@ -440,7 +440,7 @@ export function build(): Datapack {
       criteria: {
         has: {
           trigger: "minecraft:inventory_changed",
-          conditions: { items: [{ items: res.item }] },
+          conditions: { items: [{ items: [res.item] }] },
         },
       },
       rewards: { function: d.ref(`jobs/discover/${res.id}/run`).name },

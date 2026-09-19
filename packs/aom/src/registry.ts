@@ -4,8 +4,8 @@ import type { ItemId } from "../../../mcgen/src/index.ts";
 // AOM registry
 //
 // Buildings, jobs and resources are declared once here. The build emits
-// specialized functions per building type (hire/fire/generation/render,
-// dialogs, sign text); nothing interprets jobs at runtime.
+// specialized functions per building type (hire/fire/generation/render, sign
+// text); nothing interprets jobs at runtime.
 // ---------------------------------------------------------------------------
 
 export interface Resource {
@@ -19,7 +19,6 @@ export interface Job {
   readonly label: string;
   readonly kind: "unlock" | "generation" | "storage";
   readonly resource?: string;
-  readonly rate?: number;
   readonly capacity?: number;
   readonly unlock?: string;
 }
@@ -27,7 +26,8 @@ export interface Job {
 export interface BuildingType {
   readonly id: string;
   readonly label: string;
-  readonly category: "townhouse" | "industrial";
+  readonly category: "townhall" | "townhouse" | "industrial";
+  readonly description: string;
   readonly jobs: readonly Job[];
 }
 
@@ -61,23 +61,26 @@ export const UNLOCKS: readonly Unlock[] = [
   },
 ];
 
-export function unlock(id: string): Unlock {
-  const found = UNLOCKS.find((entry) => entry.id === id);
-  if (!found) throw new Error(`Unknown unlock: ${id}`);
-  return found;
-}
-
 export const BUILDINGS: readonly BuildingType[] = [
+  {
+    id: "townhall",
+    label: "Townhall",
+    category: "townhall",
+    description: "Anchors the town and manages its membership.",
+    jobs: [],
+  },
   {
     id: "townhouse",
     label: "Townhouse",
     category: "townhouse",
+    description: "Houses villagers for the town.",
     jobs: [],
   },
   {
     id: "lumbermill",
     label: "Lumbermill",
     category: "industrial",
+    description: "Generates and stores oak logs; unlocks wooden tool recipes.",
     jobs: [
       {
         id: "tool_crafter",
@@ -90,7 +93,6 @@ export const BUILDINGS: readonly BuildingType[] = [
         label: "Oak cutters",
         kind: "generation",
         resource: "oak_logs",
-        rate: 1,
       },
       {
         id: "oak_banker",
@@ -107,11 +109,11 @@ export const INDUSTRIAL_BUILDINGS: readonly BuildingType[] = BUILDINGS.filter(
   (building) => building.category === "industrial",
 );
 
-export function building(id: string): BuildingType {
-  const found = BUILDINGS.find((entry) => entry.id === id);
-  if (!found) throw new Error(`Unknown building: ${id}`);
-  return found;
-}
+/**
+ * Buildings offered in the build menu: every building, including the townhall
+ * so it can be rebuilt if its sign or block was destroyed.
+ */
+export const BUILD_MENU_BUILDINGS: readonly BuildingType[] = BUILDINGS;
 
 /** The storage resources a building uses, in registry order. */
 export function buildingResources(type: BuildingType): Resource[] {
@@ -139,30 +141,31 @@ export function storageJobs(type: BuildingType, resourceId: string): Job[] {
   );
 }
 
-/** The unlock job granting an unlock, if the building has one. */
-export function unlockJob(type: BuildingType, unlockId: string): Job | undefined {
-  return type.jobs.find(
-    (job) => job.kind === "unlock" && job.unlock === unlockId,
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Action indices
 //
-// Dialog buttons only set the `aom.action` trigger. The numeric values must be
-// identical in the dialogs and in the per-type action handlers.
+// Menu buttons only set the `aom.action` trigger. The numeric values must be
+// identical in the menus and in the per-type action handlers.
 // ---------------------------------------------------------------------------
 
-export const TOWNHOUSE_ACTIONS = {
+/** Actions of the townhall menu (the town's own management). */
+export const TOWNHALL_ACTIONS = {
   join: 1,
   leave: 2,
-  addVillager: 3,
-  removeVillager: 4,
-  deleteTown: 5,
-  townInfo: 6,
+  deleteTown: 3,
+  /** Chat-page navigation, kept clear of the action indices above. */
+  pagePrev: 10,
+  pageNext: 11,
 } as const;
 
-/** The `aom.action` value the generic confirm dialog's "yes" button uses. */
+/** Actions of a townhouse (villager housing) menu. */
+export const TOWNHOUSE_ACTIONS = {
+  addVillager: 1,
+  removeVillager: 2,
+  delete: 3,
+} as const;
+
+/** The `aom.action` value the generic confirm prompt's "yes" button uses. */
 export const CONFIRM_ACTION = -1;
 
 export const STORAGE_AMOUNTS = [
@@ -172,18 +175,10 @@ export const STORAGE_AMOUNTS = [
   { value: 2147483647, label: "all" },
 ] as const;
 
-export interface JobActionIndices {
-  readonly hire: number;
-  readonly fire: number;
-}
-
-export function jobActions(index: number): JobActionIndices {
-  return { hire: index * 2 + 1, fire: index * 2 + 2 };
-}
-
-/** First `aom.action` index used by storage actions of an industrial type. */
-export function storageActionBase(type: BuildingType): number {
-  return type.jobs.length * 2 + 1;
+/** First `aom.action` index used by storage actions of an industrial type.
+ *  Jobs are permanent, so each job takes a single (hire) action index. */
+function storageActionBase(type: BuildingType): number {
+  return type.jobs.length + 1;
 }
 
 /** `aom.action` index for a deposit/withdraw button. */

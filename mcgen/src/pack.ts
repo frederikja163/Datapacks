@@ -64,10 +64,6 @@ export class Datapack {
     this.json(`data/${this.namespace}/predicate/${path}.json`, value);
   }
 
-  dialog(path: string, value: unknown): void {
-    this.json(`data/${this.namespace}/dialog/${path}.json`, value);
-  }
-
   itemModifier(path: string, value: unknown): void {
     this.json(`data/${this.namespace}/item_modifier/${path}.json`, value);
   }

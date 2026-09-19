@@ -1261,7 +1261,7 @@ export function build(): Datapack {
     "scoreboard players set @s aom.action 0",
     `$data modify storage aom:tmp chat.town set from storage aom:data players.$(key).town`,
     `data remove storage aom:tmp chat.nav`,
-    `execute if score @s aom.town_info matches 1..1 run data modify storage aom:data players.$(key).page set value 1`,
+    `$execute if score @s aom.town_info matches 1..1 run data modify storage aom:data players.$(key).page set value 1`,
     `$execute unless data storage aom:data players.$(key).page run data modify storage aom:data players.$(key).page set value 1`,
     `function ${townInfoPage.name} with storage aom:tmp chat`,
   ]);
@@ -1404,7 +1404,7 @@ export function build(): Datapack {
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run tellraw @s ${snbt([text("There is already a building at this sign.", { color: "red" })])}`,
     `$execute in $(dimension) if entity @e[type=minecraft:marker,tag=aom_anchor,x=$(x),y=$(y),z=$(z),dx=1,dy=1,dz=1,limit=1] run return fail`,
     `$scoreboard players add $(town) aom.build_acc 0`,
-    "execute store result storage aom:tmp place.id int 1 run scoreboard players get $(town) aom.build_acc",
+    "$execute store result storage aom:tmp place.id int 1 run scoreboard players get $(town) aom.build_acc",
     `$scoreboard players add $(town) aom.build_acc 1`,
     `function ${placeCreate.name} with storage aom:tmp place`,
   ]);
@@ -1699,12 +1699,12 @@ export function build(): Datapack {
         "red",
       ),
     );
-    menuRefs.set(type.id, d.defineFunction(`ui/menu/${type.id}`, ["$" + tellraw("@s", parts)]));
+    menuRefs.set(type.id, d.defineFunction(`ui/menu/${type.id}`, [ "$" + tellraw("@s", parts)]));
   }
 
   const menuTownhall = d.defineFunction("ui/menu/townhall", [
     "data remove storage aom:tmp chat",
-    `data modify storage aom:tmp chat.town set value "$(town)"`,
+    `$data modify storage aom:tmp chat.town set value "$(town)"`,
     `function ${playerKey.name}`,
     `data modify storage aom:tmp chat.key set from storage aom:tmp player_key`,
     `data modify storage aom:tmp chat.nav set value "menu"`,
@@ -1978,8 +1978,8 @@ export function build(): Datapack {
   const planSearchRadius = 3;
 
   const planPlaceSearchFromHere = d.defineFunction("plan/place/search_here", [
-    "data remove storage aom:data players.$(key).found",
-    `data modify storage aom:data players.$(key).found set value {}`,
+    "$data remove storage aom:data players.$(key).found",
+    `$data modify storage aom:data players.$(key).found set value {}`,
     "scoreboard players set #found aom.tmp 0",
     ...Array.from({ length: planSearchRadius + 1 }, (_, ring) => {
       const args = `{"key":"$(key)","action":"$(action)"}`;
@@ -2198,10 +2198,10 @@ export function build(): Datapack {
   ]);
 
   const recordOverworld = d.defineFunction("player/second/overworld", [
-    `execute store result storage aom:data players.$(key).ow.x double 1 run data get entity @s Pos[0]`,
-    `execute store result storage aom:data players.$(key).ow.y double 1 run data get entity @s Pos[1]`,
-    `execute store result storage aom:data players.$(key).ow.z double 1 run data get entity @s Pos[2]`,
-    `data modify storage aom:data players.$(key).ow.dimension set from entity @s Dimension`,
+    `$execute store result storage aom:data players.$(key).ow.x double 1 run data get entity @s Pos[0]`,
+    `$execute store result storage aom:data players.$(key).ow.y double 1 run data get entity @s Pos[1]`,
+    `$execute store result storage aom:data players.$(key).ow.z double 1 run data get entity @s Pos[2]`,
+    `$data modify storage aom:data players.$(key).ow.dimension set from entity @s Dimension`,
   ]);
 
   const portalTeleport = d.defineFunction("player/second/teleport", [
@@ -2210,21 +2210,21 @@ export function build(): Datapack {
   ]);
 
   const portalReturn = d.defineFunction("player/second/return", [
-    `execute if data storage aom:data towns.$(town).mechanics.portal run return 0`,
-    `execute unless data storage aom:data players.$(key).ow run return 0`,
+    `$execute if data storage aom:data towns.$(town).mechanics.portal run return 0`,
+    `$execute unless data storage aom:data players.$(key).ow run return 0`,
     "data remove storage aom:tmp ret2",
-    `data modify storage aom:tmp ret2.dimension set from storage aom:data players.$(key).ow.dimension`,
-    `data modify storage aom:tmp ret2.x set from storage aom:data players.$(key).ow.x`,
-    `data modify storage aom:tmp ret2.y set from storage aom:data players.$(key).ow.y`,
-    `data modify storage aom:tmp ret2.z set from storage aom:data players.$(key).ow.z`,
+    `$data modify storage aom:tmp ret2.dimension set from storage aom:data players.$(key).ow.dimension`,
+    `$data modify storage aom:tmp ret2.x set from storage aom:data players.$(key).ow.x`,
+    `$data modify storage aom:tmp ret2.y set from storage aom:data players.$(key).ow.y`,
+    `$data modify storage aom:tmp ret2.z set from storage aom:data players.$(key).ow.z`,
     `function ${portalTeleport.name} with storage aom:tmp ret2`,
   ]);
 
   const netherCheck = d.defineFunction("player/second/nether", [
-    `execute unless data storage aom:data players.$(key).town run return 0`,
+    `$execute unless data storage aom:data players.$(key).town run return 0`,
     "data remove storage aom:tmp ret",
-    `data modify storage aom:tmp ret.town set from storage aom:data players.$(key).town`,
-    `data modify storage aom:tmp ret.key set value "$(key)"`,
+    `$data modify storage aom:tmp ret.town set from storage aom:data players.$(key).town`,
+    `$data modify storage aom:tmp ret.key set value "$(key)"`,
     `execute if data storage aom:tmp ret.town run function ${portalReturn.name} with storage aom:tmp ret`,
   ]);
 

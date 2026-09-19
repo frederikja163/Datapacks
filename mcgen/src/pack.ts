@@ -42,9 +42,19 @@ export class Datapack {
       // Minecraft rejects a `$` line with no `$(...)` placeholder
       // ("No variables in macro") and fails to load the whole function, so a
       // prefixed line that ended up without macros is emitted as a plain line.
-      .map((line) =>
-        line.startsWith("$") && !line.includes("$(") ? line.slice(1) : line,
-      );
+      // The inverse is a silent runtime bug: a line with `$(...)` that is not
+      // prefixed is never substituted, so the literal `$(name)` reaches the
+      // game. Reject it at build time instead.
+      .map((line) => {
+        if (line.includes("$(") && !line.startsWith("$")) {
+          throw new Error(
+            `Macro line in ${path} is missing the leading $: ${line}`,
+          );
+        }
+        return line.startsWith("$") && !line.includes("$(")
+          ? line.slice(1)
+          : line;
+      });
     this.set(
       `data/${this.namespace}/function/${path}.mcfunction`,
       body.length ? `${body.join("\n")}\n` : "",

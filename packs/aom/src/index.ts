@@ -2236,9 +2236,9 @@ export function build(): Datapack {
     `execute if data storage aom:tmp pstown.town run function ${depthTown.name} with storage aom:tmp pstown`,
     "scoreboard players set #y aom.tmp 0",
     "execute store result score #y aom.tmp run data get entity @s Pos[1]",
-    "execute if score #y aom.tmp < #depth aom.tmp run effect give @s minecraft:mining_fatigue 3 0 true",
+    "execute if entity @s[nbt={Dimension:\"minecraft:overworld\"}] if score #y aom.tmp < #depth aom.tmp run effect give @s minecraft:mining_fatigue 3 0 true",
     `execute if entity @s[nbt={Dimension:"minecraft:overworld"}] run function ${recordOverworld.name} with storage aom:tmp ps`,
-    `execute unless entity @s[nbt={Dimension:"minecraft:overworld"}] run function ${netherCheck.name} with storage aom:tmp ps`,
+    `execute if entity @s[nbt={Dimension:"minecraft:the_nether"}] run function ${netherCheck.name} with storage aom:tmp ps`,
   ]);
 
   const playerSecond = d.defineFunction("player/second", [

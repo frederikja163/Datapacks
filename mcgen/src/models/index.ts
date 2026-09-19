@@ -97,6 +97,8 @@ export const ITEMS = [
   "minecraft:pale_oak_planks",
   "minecraft:pale_oak_sign",
   "minecraft:paper",
+  "minecraft:poplar_planks",
+  "minecraft:poplar_sign",
   "minecraft:porkchop",
   "minecraft:potato",
   "minecraft:pufferfish",

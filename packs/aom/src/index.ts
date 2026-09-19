@@ -396,7 +396,7 @@ export function build(): Datapack {
   );
 
   const starter = d.defineFunction("player/starter", [
-    `$function ${d.ref("player/starter/grant").name} {"placeholder":0}`,
+    `function ${d.ref("player/starter/grant").name}`,
     `tag @s add ${READY_TAG}`,
   ]);
   d.defineFunction(

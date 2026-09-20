@@ -11,7 +11,7 @@ The goal of the TypeScript pipeline is that generated commands are typed: invali
 | `mcgen/` | Shared TypeScript library: datapack builder, typed text components, command helpers, version and registry models. |
 | `packs/<name>/src/` | Source of one datapack per folder. Currently `aom`, `dps`, `imsp`, `soulbound` and `unbreakable`. |
 | `packs/<name>/build/<name>/` | Generated datapack output (gitignored). |
-| `scripts/` | `build.ts` (build packs), `deploy.ts` (copy builds into a world) and `gen-models.ts` (regenerate version models). |
+| `scripts/` | `build.ts` (build packs), `deploy.ts` (copy builds into a world), `build-docs.ts` (generate the documentation site) and `gen-models.ts` (regenerate version models). |
 
 ## Requirements
 
@@ -25,6 +25,7 @@ bun install
 bun run build            # build every TypeScript pack
 bun run build dps        # build a single pack
 bun run deploy           # build and copy packs into a Minecraft world
+bun run docs             # generate the documentation site into site/
 bun run typecheck        # tsc --noEmit
 bun run gen              # regenerate version models from misode/mcmeta
 ```
@@ -48,12 +49,24 @@ Generated output ends up in `packs/<name>/build/<name>/`. Zip the **contents** o
 
 The deploy copies real files rather than symlinks, because Minecraft rejects symlinked datapacks. Run `/reload` in game afterwards.
 
+## Documentation
+
+`bun run docs` renders a static site into the gitignored `site/`. It is generated from the pack sources, not hand-written HTML:
+
+- each pack's prose lives in `packs/<name>/src/docs.ts` (summary, features, commands, notes);
+- structural sections are derived from the code itself: AOM's buildings, resources and advancement tree come from `packs/aom/src/registry.ts` and `packs/aom/src/tree.ts`, and DPS's skill tables come from `packs/dps/src/actions.ts`.
+
+`.github/workflows/pages.yml` builds the site on every push to `main` and deploys it to GitHub Pages. No generated HTML is committed; edit the TypeScript and the page follows.
+
+One-time setup: in the repository's **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions**. After that the workflow publishes every push to `main`.
+
 ## Adding a datapack
 
 1. Create `packs/<name>/src/index.ts` exporting `build(): Datapack`.
-2. Register it in `scripts/build.ts`.
-3. Add `packs/<name>/VERSION` with a `MAJOR.MINOR` base — packs without a version file are not released.
-4. Run `bun run build <name>`.
+2. Register it in `scripts/packs.ts`.
+3. Add `packs/<name>/src/docs.ts` exporting a `PackDocs` (the type comes from `mcgen/src/index.ts`).
+4. Add `packs/<name>/VERSION` with a `MAJOR.MINOR` base — packs without a version file are not released.
+5. Run `bun run build <name>` and `bun run docs`.
 
 ## Version updates
 

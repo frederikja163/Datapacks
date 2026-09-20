@@ -6,6 +6,7 @@
   "scripts": {
     "build": "bun run scripts/build.ts",
     "deploy": "bun run scripts/deploy.ts",
+    "docs": "bun run scripts/build-docs.ts",
     "typecheck": "tsc --noEmit",
     "gen": "bun run scripts/gen-models.ts"
   },

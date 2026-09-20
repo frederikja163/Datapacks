@@ -14,6 +14,7 @@ bun run typecheck        # must pass before committing
 bun run build            # build all TypeScript packs
 bun run build <name>     # build one pack (aom, dps, imsp, soulbound, unbreakable)
 bun run deploy           # build and copy packs into the world in deploy.config.json (needs that file)
+bun run docs             # generate the documentation site into site/
 bun run gen              # regenerate mcgen/src/models/versions.generated.ts
 ```
 
@@ -24,6 +25,7 @@ Generated output lives in `packs/<name>/build/<name>/` and is gitignored. Never 
 - **Author packs in TypeScript.** Do not add hand-written `.mcfunction` files to `packs/*`; generate them from `src/index.ts`. If a command has no helper yet, add one to `mcgen/src/commands.ts` or use a plain string in the generator.
 - **Use the typed text components** from `mcgen/src/text.ts` (`text`, `score`, `selector`, `nbt`, `snbt`). They model the post-1.21.5 format: `hover_event` / `click_event`, `hover_event.show_text.value`, `click_event.run_command.command`. Never emit the legacy `hoverEvent` / `clickEvent` / `contents` fields.
 - **Reference functions through `FunctionRef`s.** `d.defineFunction()` returns a handle; build call lines from `ref.name`. This catches typos and dangling references. Raw `dps:foo/bar` strings are only acceptable inside macro bodies where a runtime macro is required.
+- **Documentation is TypeScript.** Each pack's prose lives in `packs/<name>/src/docs.ts` (typed `PackDocs`); `scripts/build-docs.ts` derives the structural sections from the registries. Never parse markdown to build docs or pack sources.
 - **Registry ids are typed.** If you need a new item/block/effect/sound/entity id, add it to `mcgen/src/models/index.ts` first. This is the "internal model" that gets updated for new Minecraft versions.
 - **One pack per folder** under `packs/`, registered in `scripts/packs.ts`. The pack namespace must match the folder name.
 - **Deploy when it is set up.** If `deploy.config.json` exists, run `bun run deploy` after a successful build so your changes reach the configured test world (the script rebuilds and copies; it does not run `/reload`). Deploy before telling the user a change is ready to try.
@@ -32,7 +34,7 @@ Generated output lives in `packs/<name>/build/<name>/` and is gitignored. Never 
 
 ## Verifying changes
 
-- `bun run typecheck` and `bun run build` must both succeed.
+- `bun run typecheck` and `bun run build` must both succeed. Run `bun run docs` after touching pack docs or derived data.
 - If `deploy.config.json` exists, finish with `bun run deploy` so the test world is updated, and tell the user to `/reload` in game.
 - For ports/migrations, compare generated output against the previous datapack semantically (normalize whitespace and JSON key order) rather than trusting a visual diff.
 - Validate generated JSON: `python3 -c "import json,sys; json.load(open(sys.argv[1]))" <file>` for every emitted `.json`.

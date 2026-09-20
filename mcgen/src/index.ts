@@ -1,5 +1,6 @@
 export * from "./commands.ts";
 export * from "./anchors.ts";
+export * from "./docs.ts";
 export * from "./models/index.ts";
 export * from "./pack.ts";
 export * from "./raycast.ts";

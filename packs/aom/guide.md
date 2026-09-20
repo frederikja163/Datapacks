@@ -125,6 +125,9 @@ Each building can have unlock, generation, storage and mechanic jobs. The table
 below lists what each building provides; exact recipes and rates are in
 `DESIGN.md`.
 
+The **advancements page** tracks your progress: every building your town has
+made is granted, and it is revoked again if the building is packed or deleted.
+
 | Category | Buildings |
 | --- | --- |
 | Civic | Townhall, Townhouse |

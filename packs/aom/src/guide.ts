@@ -47,6 +47,7 @@ export const GUIDE: readonly GuidePage[] = [
       "You can only belong to one town at a time.",
       "Population = every townhouse's villagers; members are not workers.",
       "Employed = every staffed job. Hiring needs Population above Employed.",
+      "Every building your town has made shows on your advancements page.",
       "Only the last member can delete a town.",
     ],
   },

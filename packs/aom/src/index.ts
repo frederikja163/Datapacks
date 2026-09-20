@@ -24,6 +24,13 @@ import {
 } from "../../../mcgen/src/index.ts";
 import { GUIDE } from "./guide.ts";
 import {
+  CATEGORY_TITLES,
+  TREE,
+  TREE_BACKGROUND,
+  TREE_BUILDINGS,
+  TREE_STATIC,
+} from "./tree.ts";
+import {
   BUILDINGS,
   BUILD_MENU_BUILDINGS,
   CONFIRM_ACTION,
@@ -304,31 +311,47 @@ export function build(): Datapack {
     countRefs.set(type.id, d.defineFunction(`jobs/count/${type.id}`, lines));
   }
 
-  const countDispatch = d.defineFunction(
-    "jobs/count/dispatch",
-    [...countRefs.entries()].map(([id, ref]) => {
-      const type = BUILDINGS.find((entry) => entry.id === id)!;
-      return typeCommand(type, `function ${ref.name} with storage aom:tmp anchor`);
+  // Counts are read from the town's stored buildings, not from anchors, so a
+  // building in an unloaded chunk still contributes (and still shows up on the
+  // advancement page).
+  const countBuilding = d.defineFunction(
+    "jobs/count/building",
+    BUILDINGS.flatMap((type) => {
+      const ref = countRefs.get(type.id);
+      const mark = typeCommand(
+        type,
+        `data modify storage aom:data towns.$(town).has.${type.id} set value 1b`,
+      );
+      if (!ref) return [mark];
+      return [
+        typeCommand(type, `function ${ref.name} with storage aom:tmp count`),
+        mark,
+      ];
     }),
   );
 
-  const countOne = d.defineFunction("jobs/count/one", [
-    "data remove storage aom:tmp anchor",
-    "data modify storage aom:tmp anchor set from entity @s data.aom",
-    `execute if data storage aom:tmp anchor run function ${countDispatch.name} with storage aom:tmp anchor`,
+  const countLoopRef = d.ref("jobs/count/loop");
+  d.defineFunction(countLoopRef.path, [
+    "execute if score #i aom.tmp > #max aom.tmp run return 0",
+    "execute store result storage aom:tmp count.building int 1 run scoreboard players get #i aom.tmp",
+    `function ${countBuilding.name} with storage aom:tmp count`,
+    "scoreboard players add #i aom.tmp 1",
+    `function ${countLoopRef.name}`,
   ]);
 
-  const count = d.defineFunction(
-    "jobs/count",
-    eachAnchor(`function ${countOne.name}`),
-  );
-
-  const zeroCounts = d.defineFunction(
-    "jobs/count/zero",
-    JOB_IDS.map(
+  const count = d.defineFunction("jobs/count", [
+    ...JOB_IDS.map(
       (id) => `$data modify storage aom:data towns.$(town).jobs.${id} set value 0`,
     ),
-  );
+    ...BUILDINGS.map(
+      (type) => `$data remove storage aom:data towns.$(town).has.${type.id}`,
+    ),
+    "scoreboard players set #i aom.tmp 1",
+    "scoreboard players set #max aom.tmp 0",
+    `$execute store result score #max aom.tmp run scoreboard players get $(town) aom.build_acc`,
+    `$data modify storage aom:tmp count.town set value "$(town)"`,
+    `function ${countLoopRef.name}`,
+  ]);
 
   const activeLines: Lines = [];
   for (const info of UNLOCK_INFO.values()) {
@@ -348,6 +371,57 @@ export function build(): Datapack {
     );
   }
   const computeActive = d.defineFunction("jobs/unlock/active", activeLines);
+
+  // The advancement page: one node per building, granted while the town has
+  // that building. Root and category nodes are always granted.
+  for (const node of TREE) {
+    const building = BUILDINGS.find((entry) => entry.id === node.id);
+    const title =
+      node.kind === "root"
+        ? "Age of Minecraft"
+        : node.kind === "category"
+          ? CATEGORY_TITLES[node.id]!
+          : building!.label;
+    const description =
+      node.kind === "root"
+        ? "The buildings your town has made."
+        : node.kind === "category"
+          ? `The ${CATEGORY_TITLES[node.id]} buildings.`
+          : building!.description;
+    d.advancement(`tree/${node.id}`, {
+      ...(node.parent ? { parent: `aom:tree/${node.parent}` } : {}),
+      display: {
+        icon: { id: node.icon },
+        title,
+        description,
+        frame: node.frame,
+        show_toast: false,
+        announce_to_chat: false,
+        hidden: false,
+        ...(node.kind === "root" ? { background: TREE_BACKGROUND } : {}),
+      },
+      criteria: { always: { trigger: "minecraft:impossible" } },
+    });
+  }
+
+  // Grant/revoke the building advancements for the whole town.
+  const advSync = d.defineFunction(
+    "jobs/adv/sync",
+    TREE_BUILDINGS.flatMap((node) => [
+      `$execute if data storage aom:data towns.$(town).has.${node.id} unless data storage aom:data towns.$(town).adv.${node.id} as @a[tag=aom_member_$(town)] run advancement grant @s only aom:tree/${node.id}`,
+      `$execute if data storage aom:data towns.$(town).has.${node.id} run data modify storage aom:data towns.$(town).adv.${node.id} set value 1b`,
+      `$execute unless data storage aom:data towns.$(town).has.${node.id} if data storage aom:data towns.$(town).adv.${node.id} as @a[tag=aom_member_$(town)] run advancement revoke @s only aom:tree/${node.id}`,
+      `$execute unless data storage aom:data towns.$(town).has.${node.id} run data remove storage aom:data towns.$(town).adv.${node.id}`,
+    ]),
+  );
+
+  const grantBuildings = d.defineFunction(
+    "jobs/grant/buildings",
+    TREE_BUILDINGS.map(
+      (node) =>
+        `$execute if data storage aom:data towns.$(town).has.${node.id} run advancement grant @s only aom:tree/${node.id}`,
+    ),
+  );
 
   // One hidden advancement per recipe group. Granting it hands out the whole
   // group in a single command; the town's buildings decide when it is granted.
@@ -397,30 +471,59 @@ export function build(): Datapack {
     }),
   );
 
-  const clearUnlocks = d.defineFunction(
-    "player/clear_unlocks",
-    TOWN_RECIPES.flatMap((group) => [
+  const clearUnlocks = d.defineFunction("player/clear_unlocks", [
+    ...TOWN_RECIPES.flatMap((group) => [
       ...group.recipes.map((recipe) => `recipe take @s ${recipe}`),
       `advancement revoke @s only aom:unlock/${group.key}`,
     ]),
-  );
+    ...TREE_BUILDINGS.map(
+      (node) => `advancement revoke @s only aom:tree/${node.id}`,
+    ),
+  ]);
 
   const starter = d.defineFunction("player/starter", [
     `function ${d.ref("player/starter/grant").name}`,
     `tag @s add ${READY_TAG}`,
   ]);
-  d.defineFunction(
-    "player/starter/grant",
-    STARTER_RECIPES.map(
+  d.defineFunction("player/starter/grant", [
+    ...STARTER_RECIPES.map(
       (group) => `advancement grant @s only aom:unlock/${group.key}`,
     ),
-  );
+    ...TREE_STATIC.map(
+      (node) => `advancement grant @s only aom:tree/${node.id}`,
+    ),
+  ]);
 
   const syncAll = d.defineFunction("jobs/unlock/sync_all", [
-    `$function ${zeroCounts.name} {"town":"$(town)"}`,
-    `function ${count.name}`,
+    `$function ${count.name} {"town":"$(town)"}`,
     `$function ${computeActive.name} {"town":"$(town)"}`,
     `$function ${grantSync.name} {"town":"$(town)"}`,
+    `$function ${advSync.name} {"town":"$(town)"}`,
+  ]);
+
+  // A complete per-player re-sync: wipe every recipe and advancement this pack
+  // can grant, then hand back exactly what the player's town currently has.
+  // This keeps old saves working when recipes are added to or removed from a
+  // building, and runs on join and on /reload.
+  const playerResyncRun = d.defineFunction("player/resync/run", [
+    `$execute if data storage aom:data players.$(key).town run data modify storage aom:tmp resync.town set from storage aom:data players.$(key).town`,
+    ...ALL_GATED.map((recipe) => `recipe take @s ${recipe}`),
+    ...GROUPS.map((group) => `advancement revoke @s only aom:unlock/${group.key}`),
+    ...TREE.map((node) => `advancement revoke @s only aom:tree/${node.id}`),
+    ...STARTER_RECIPES.map(
+      (group) => `advancement grant @s only aom:unlock/${group.key}`,
+    ),
+    ...TREE_STATIC.map(
+      (node) => `advancement grant @s only aom:tree/${node.id}`,
+    ),
+    `execute if data storage aom:tmp resync.town run function ${grantPlayer.name} with storage aom:tmp resync`,
+    `execute if data storage aom:tmp resync.town run function ${grantBuildings.name} with storage aom:tmp resync`,
+  ]);
+  const playerResync = d.defineFunction("player/resync", [
+    `function ${playerKey.name}`,
+    "data remove storage aom:tmp resync",
+    "data modify storage aom:tmp resync.key set from storage aom:tmp player_key",
+    `function ${playerResyncRun.name} with storage aom:tmp resync`,
   ]);
 
   // -------------------------------------------------------------------------
@@ -497,7 +600,7 @@ export function build(): Datapack {
     `$execute unless data storage aom:data towns.$(town) run return 0`,
     `$tag @s add aom_member_$(town)`,
     `$function ${syncAllRef.name} {"town":"$(town)"}`,
-    `function ${grantPlayer.name} with storage aom:tmp join`,
+    `function ${playerResync.name}`,
     `function ${discoverScan.name} with storage aom:tmp join`,
   ]);
 
@@ -2501,6 +2604,9 @@ export function build(): Datapack {
     "",
     ...PLANS.map((plan) => `advancement revoke @a only aom:plan_${plan.id}_place`),
     ...RESOURCES.map((res) => `advancement revoke @a only aom:discover/${res.id}`),
+    "",
+    // A full recipe/advancement re-sync so recipe-list changes take effect.
+    `execute as @a run function ${playerResync.name}`,
     "",
     scheduleFunction(second, "1s"),
     scheduleFunction(refresh, "1s"),

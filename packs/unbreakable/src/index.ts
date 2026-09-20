@@ -25,6 +25,7 @@ export function build(): Datapack {
       "minecraft:unbreaking",
       "minecraft:mending",
       "minecraft:binding_curse",
+			"minecraft:infinity",
     ],
     supported_items: "#minecraft:enchantable/durability",
     weight: 2,

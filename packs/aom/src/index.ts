@@ -280,7 +280,6 @@ export function build(): Datapack {
 
   const showBuildingMenu = d.ref("ui/menu/show");
   const syncAllRef = d.ref("jobs/unlock/sync_all");
-  const grantPlayerRef = d.ref("jobs/grant/player");
   const discoverScanRef = d.ref("player/discover_scan");
 
   const syncAllFor = (town: string): string =>
@@ -1242,7 +1241,7 @@ export function build(): Datapack {
     `$scoreboard players add $(town) aom.members 1`,
     `$tag @s add aom_member_$(town)`,
     `$function ${syncAllRef.name} {"town":"$(town)"}`,
-    `$function ${grantPlayerRef.name} {"town":"$(town)","key":"$(key)"}`,
+    `function ${playerResync.name}`,
     `$function ${discoverScanRef.name} {"town":"$(town)","key":"$(key)"}`,
     `$tellraw @a ${snbt([{ selector: "@s", color: "gray" }, text(" joined ", { color: "gray" }), text("$(town)", { color: "aqua" }), text(".", { color: "gray" })])}`,
   ]);
@@ -2378,7 +2377,7 @@ export function build(): Datapack {
     `$scoreboard players add $(name) aom.members 1`,
     `$tag @s add aom_member_$(name)`,
     `$function ${syncAllRef.name} {"town":"$(name)"}`,
-    `$function ${grantPlayerRef.name} {"town":"$(name)","key":"$(key)"}`,
+    `function ${playerResync.name}`,
     `$function ${discoverScanRef.name} {"town":"$(name)","key":"$(key)"}`,
     `$function ${renderSignsDispatch.name} {"town":"$(name)","building":1}`,
     `$tellraw @a ${snbt([{ selector: "@s", color: "green" }, text(" founded the town of ", { color: "green" }), text("$(name)", { color: "aqua" }), text("!", { color: "green" })])}`,

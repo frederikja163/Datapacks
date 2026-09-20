@@ -148,6 +148,15 @@ export const EFFECTS = [
   "minecraft:strength",
   "minecraft:haste",
   "minecraft:mining_fatigue",
+  "minecraft:speed",
+  "minecraft:jump_boost",
+  "minecraft:regeneration",
+  "minecraft:fire_resistance",
+  "minecraft:water_breathing",
+  "minecraft:invisibility",
+  "minecraft:night_vision",
+  "minecraft:slow_falling",
+  "minecraft:resistance",
 ] as const;
 export type EffectId = (typeof EFFECTS)[number];
 
@@ -156,6 +165,7 @@ export const SOUNDS = [
   "minecraft:block.note_block.pling",
   "minecraft:entity.experience_orb.pickup",
   "minecraft:entity.firework_rocket.twinkle_far",
+  "minecraft:entity.item.pickup",
   "minecraft:entity.player.levelup",
 ] as const;
 export type SoundId = (typeof SOUNDS)[number];

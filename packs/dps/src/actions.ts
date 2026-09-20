@@ -7,6 +7,11 @@ export interface Action {
   readonly objective: string;
   readonly criteria: string;
   readonly xp: number;
+  /** Divide the statistic delta by this before granting xp. Used for
+   *  distance-based custom stats (e.g. `fall_one_cm`) whose raw delta is far
+   *  larger than one "event". The value must exist as a holder in
+   *  `dps_globals`. */
+  readonly divisor?: number;
 }
 
 export const ACTIONS = {
@@ -210,5 +215,23 @@ export const ACTIONS = {
   ],
   fishing: [
     { objective: "dps_fish_caught", criteria: "minecraft.custom:minecraft.fish_caught", xp: 1 },
+  ],
+  archery: [
+    { objective: "dps_bow", criteria: "minecraft.used:minecraft.bow", xp: 1 },
+    { objective: "dps_crossbow", criteria: "minecraft.used:minecraft.crossbow", xp: 1 },
+  ],
+  taming: [
+    { objective: "dps_animals_bred", criteria: "minecraft.custom:minecraft.animals_bred", xp: 3 },
+  ],
+  alchemy: [
+    { objective: "dps_brewing_stand", criteria: "minecraft.custom:minecraft.interact_with_brewingstand", xp: 2 },
+    { objective: "dps_potion_drunk", criteria: "minecraft.used:minecraft.potion", xp: 1 },
+  ],
+  acrobatics: [
+    { objective: "dps_jumps", criteria: "minecraft.custom:minecraft.jump", xp: 1 },
+    { objective: "dps_fall_cm", criteria: "minecraft.custom:minecraft.fall_one_cm", xp: 1, divisor: 100 },
+  ],
+  trading: [
+    { objective: "dps_trades", criteria: "minecraft.custom:minecraft.traded_with_villager", xp: 2 },
   ],
 } as const satisfies Record<string, readonly Action[]>;

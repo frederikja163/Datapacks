@@ -16,10 +16,20 @@ import {
 } from "../../../mcgen/src/index.ts";
 import { ACTIONS, type Action } from "./actions.ts";
 
-type SkillName = keyof typeof ACTIONS;
-type Powerup = "effect" | "tree_cutter" | "none";
+export type SkillName = keyof typeof ACTIONS;
+export type Powerup =
+  | "effect"
+  | "tree_cutter"
+  | "none"
+  | "harvest"
+  | "repair"
+  | "effect_extend"
+  | "arrow_recovery"
+  | "twins"
+  | "fall_guard"
+  | "angler";
 
-interface SkillConfig {
+export interface SkillConfig {
   readonly name: SkillName;
   readonly display: string;
   readonly powerup: Powerup;
@@ -28,7 +38,7 @@ interface SkillConfig {
   readonly useEffectArg?: string;
 }
 
-const SKILLS: readonly SkillConfig[] = [
+export const SKILLS: readonly SkillConfig[] = [
   {
     name: "combat",
     display: "⚔ Combat",
@@ -53,9 +63,14 @@ const SKILLS: readonly SkillConfig[] = [
     useEffectArg: "haste",
   },
   { name: "woodcutting", display: "🪓 Woodcutting", powerup: "tree_cutter" },
-  { name: "farming", display: "☘ Farming", powerup: "none" },
-  { name: "enchanting", display: "✨ Enchanting", powerup: "none" },
-  { name: "fishing", display: "🐟 Fishing", powerup: "none" },
+  { name: "farming", display: "☘ Farming", powerup: "harvest" },
+  { name: "enchanting", display: "✨ Enchanting", powerup: "repair" },
+  { name: "fishing", display: "🐟 Fishing", powerup: "angler" },
+  { name: "archery", display: "🏹 Archery", powerup: "arrow_recovery" },
+  { name: "taming", display: "🐾 Taming", powerup: "twins" },
+  { name: "alchemy", display: "⚗ Alchemy", powerup: "effect_extend" },
+  { name: "acrobatics", display: "🤸 Acrobatics", powerup: "fall_guard" },
+  { name: "trading", display: "💱 Trading", powerup: "none" },
 ];
 
 const LOG_TYPES = [
@@ -92,6 +107,96 @@ for (const dx of [1, 0, -1]) {
   }
 }
 
+// Crops Harvest Moon can harvest and replant. The age is the fully-grown
+// block state value; replanting uses age 0.
+const HARVEST_CROPS = [
+  { block: "minecraft:wheat", age: 7 },
+  { block: "minecraft:carrots", age: 7 },
+  { block: "minecraft:potatoes", age: 7 },
+  { block: "minecraft:beetroots", age: 3 },
+] as const;
+
+// Chebyshev rings around the player, used to grow the harvest area with level.
+const HARVEST_RINGS: Record<number, Array<[number, number, number]>> = {};
+for (const radius of [1, 2, 3]) {
+  const ring: Array<[number, number, number]> = [];
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      if (Math.max(Math.abs(dx), Math.abs(dz)) !== radius) continue;
+      for (const dy of [-1, 0, 1]) {
+        ring.push([dx, dy, dz]);
+      }
+    }
+  }
+  HARVEST_RINGS[radius] = ring;
+}
+
+// Breedable animals eligible for Twins. Each type gets its own `bred_animals`
+// advancement so the newborn can be identified and cloned.
+const BREEDABLE_ANIMALS = [
+  "minecraft:armadillo",
+  "minecraft:axolotl",
+  "minecraft:bee",
+  "minecraft:camel",
+  "minecraft:cat",
+  "minecraft:chicken",
+  "minecraft:cow",
+  "minecraft:donkey",
+  "minecraft:fox",
+  "minecraft:frog",
+  "minecraft:goat",
+  "minecraft:hoglin",
+  "minecraft:horse",
+  "minecraft:llama",
+  "minecraft:mooshroom",
+  "minecraft:ocelot",
+  "minecraft:panda",
+  "minecraft:pig",
+  "minecraft:rabbit",
+  "minecraft:sheep",
+  "minecraft:sniffer",
+  "minecraft:strider",
+  "minecraft:turtle",
+  "minecraft:wolf",
+] as const;
+
+// Drinkable potions whose positive effect Extended Potions lengthens. The
+// duration is the vanilla base in ticks and the amplifier matches the potion
+// strength; `strong_*` potions are level II.
+const POSITIVE_POTIONS = [
+  { potion: "minecraft:swiftness", effect: "minecraft:speed", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_swiftness", effect: "minecraft:speed", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:strong_swiftness", effect: "minecraft:speed", duration: 1800, amplifier: 1 },
+  { potion: "minecraft:leaping", effect: "minecraft:jump_boost", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_leaping", effect: "minecraft:jump_boost", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:strong_leaping", effect: "minecraft:jump_boost", duration: 1800, amplifier: 1 },
+  { potion: "minecraft:strength", effect: "minecraft:strength", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_strength", effect: "minecraft:strength", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:strong_strength", effect: "minecraft:strength", duration: 1800, amplifier: 1 },
+  { potion: "minecraft:regeneration", effect: "minecraft:regeneration", duration: 900, amplifier: 0 },
+  { potion: "minecraft:long_regeneration", effect: "minecraft:regeneration", duration: 1800, amplifier: 0 },
+  { potion: "minecraft:strong_regeneration", effect: "minecraft:regeneration", duration: 450, amplifier: 1 },
+  { potion: "minecraft:fire_resistance", effect: "minecraft:fire_resistance", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_fire_resistance", effect: "minecraft:fire_resistance", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:water_breathing", effect: "minecraft:water_breathing", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_water_breathing", effect: "minecraft:water_breathing", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:invisibility", effect: "minecraft:invisibility", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_invisibility", effect: "minecraft:invisibility", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:night_vision", effect: "minecraft:night_vision", duration: 3600, amplifier: 0 },
+  { potion: "minecraft:long_night_vision", effect: "minecraft:night_vision", duration: 9600, amplifier: 0 },
+  { potion: "minecraft:slow_falling", effect: "minecraft:slow_falling", duration: 1800, amplifier: 0 },
+  { potion: "minecraft:long_slow_falling", effect: "minecraft:slow_falling", duration: 4800, amplifier: 0 },
+  { potion: "minecraft:turtle_master", effect: "minecraft:resistance", duration: 400, amplifier: 2 },
+  { potion: "minecraft:long_turtle_master", effect: "minecraft:resistance", duration: 800, amplifier: 2 },
+  { potion: "minecraft:strong_turtle_master", effect: "minecraft:resistance", duration: 400, amplifier: 3 },
+] as const;
+
+const ANVIL_BLOCKS = [
+  "minecraft:anvil",
+  "minecraft:chipped_anvil",
+  "minecraft:damaged_anvil",
+] as const;
+
 const sb = (skill: SkillName): string => `dps_${skill}`;
 
 function displayText(): TextComponent {
@@ -122,6 +227,7 @@ function actionLines(skill: SkillName): string[] {
         name: action.objective,
         scoreboard: action.criteria,
         xp: action.xp,
+        divisor: action.divisor ?? 1,
       })}`,
     );
   }
@@ -169,6 +275,7 @@ export function build(): Datapack {
       '$data modify storage dps:skill $(skill).display set value "$(display)"',
     ]),
     giveXpSuccess: d.defineFunction("utility/give_xp/success", [
+      "$scoreboard players operation @s $(name) /= $(divisor) dps_globals",
       "$scoreboard players operation @s $(name) *= $(name) dps_xp_config",
       "$scoreboard players operation @s $(skill)_xp += @s $(name)",
       "$scoreboard players set @s $(name) 0",
@@ -176,7 +283,7 @@ export function build(): Datapack {
       "$function dps:utility/calc_percentage {skill: $(skill)}",
     ]),
     giveXp: d.defineFunction("utility/give_xp/", [
-      '$execute as @a[scores={$(name)=1..}] run function dps:utility/give_xp/success {skill: "$(skill)", name: "$(name)"}',
+      '$execute as @a[scores={$(name)=1..}] run function dps:utility/give_xp/success {skill: "$(skill)", name: "$(name)", divisor: $(divisor)}',
     ]),
     levelupPlaysound: d.defineFunction("utility/levelup/playsound", [
       "execute if score @s dps_lvl_up_type matches 2..2 run playsound minecraft:entity.firework_rocket.twinkle_far",
@@ -623,6 +730,270 @@ export function build(): Datapack {
     ]),
   };
 
+  // --- Harvest Moon (farming) ---------------------------------------------
+  const harvestAt = d.defineFunction(
+    "powerup/harvest/at",
+    HARVEST_CROPS.flatMap((crop) => [
+      `execute if block ~ ~ ~ ${crop.block}[age=${crop.age}] run loot spawn ~ ~ ~ mine ~ ~ ~`,
+      `execute if block ~ ~ ~ ${crop.block}[age=${crop.age}] run setblock ~ ~ ~ ${crop.block}[age=0]`,
+    ]),
+  );
+  const harvestRing = (radius: number): FunctionRef =>
+    d.defineFunction(
+      `powerup/harvest/ring_${radius}`,
+      (HARVEST_RINGS[radius] ?? []).map(
+        ([dx, dy, dz]) =>
+          `execute positioned ~${dx} ~${dy} ~${dz} run function ${harvestAt.name}`,
+      ),
+    );
+  const harvestRing1 = harvestRing(1);
+  const harvestRing2 = harvestRing(2);
+  const harvestRing3 = harvestRing(3);
+  const harvest = {
+    init: d.defineFunction("powerup/harvest/init", [
+      '$function dps:utility/skill_init {skill: "$(skill)", display: "$(display)"}',
+    ]),
+    use: d.defineFunction("skill/farming/harvest", [
+      "advancement revoke @s only dps:farming_harvest",
+      `function ${harvestRing1.name}`,
+      `execute if score @s dps_farming_level matches 200.. run function ${harvestRing2.name}`,
+      `execute if score @s dps_farming_level matches 400.. run function ${harvestRing3.name}`,
+    ]),
+  };
+
+  // --- Arcane Repair (enchanting) -----------------------------------------
+  const repair = {
+    init: d.defineFunction("powerup/repair/init", [
+      '$function dps:utility/skill_init {skill: "$(skill)", display: "$(display)"}',
+      "$scoreboard objectives add $(skill)_cooldown dummy",
+    ]),
+    use: d.defineFunction("skill/enchanting/repair", [
+      "advancement revoke @s only dps:enchanting_repair",
+      "# Cooldown",
+      "execute if score @s dps_enchanting_cooldown matches 1.. run return fail",
+      "# Needs a damageable, non-unbreakable item.",
+      "execute unless items entity @s weapon.mainhand *[minecraft:damage] run return fail",
+      "execute unless items entity @s weapon.mainhand *[minecraft:max_damage] run return fail",
+      "execute if items entity @s weapon.mainhand *[minecraft:unbreakable] run return fail",
+      "execute if predicate dps:holding_unbreakable run return fail",
+      "# Cost: 3 xp levels.",
+      "execute store result score __repair_xp__ dps_tmp run data get entity @s XpLevel",
+      "execute if score __repair_xp__ dps_tmp matches ..2 run return fail",
+      "",
+      "# Read the item on a throwaway armor stand.",
+      "summon minecraft:armor_stand ~ ~ ~ {Tags:[dps_repair]}",
+      "item replace entity @e[tag=dps_repair,limit=1] weapon.mainhand from entity @s weapon.mainhand",
+      'execute store result score __repair_damage__ dps_tmp run data get entity @e[tag=dps_repair,limit=1] equipment.mainhand.components."minecraft:damage"',
+      'execute store result score __repair_max__ dps_tmp run data get entity @e[tag=dps_repair,limit=1] equipment.mainhand.components."minecraft:max_damage"',
+      "",
+      "# pct = min(25, 5 + level / 50)",
+      "scoreboard players operation __repair_pct__ dps_tmp = @s dps_enchanting_level",
+      "scoreboard players operation __repair_pct__ dps_tmp /= 50 dps_globals",
+      "scoreboard players add __repair_pct__ dps_tmp 5",
+      "execute if score __repair_pct__ dps_tmp matches 25.. run scoreboard players set __repair_pct__ dps_tmp 25",
+      "# repair = max_damage * pct / 100",
+      "scoreboard players operation __repair_pct__ dps_tmp *= __repair_max__ dps_tmp",
+      "scoreboard players operation __repair_pct__ dps_tmp /= 100 dps_globals",
+      "# new = max(0, damage - repair)",
+      "scoreboard players operation __repair_new__ dps_tmp = __repair_damage__ dps_tmp",
+      "scoreboard players operation __repair_new__ dps_tmp -= __repair_pct__ dps_tmp",
+      "execute if score __repair_new__ dps_tmp matches ..0 run scoreboard players set __repair_new__ dps_tmp 0",
+      'execute store result entity @e[tag=dps_repair,limit=1] equipment.mainhand.components."minecraft:damage" int 1 run scoreboard players get __repair_new__ dps_tmp',
+      "item replace entity @s weapon.mainhand from entity @e[tag=dps_repair,limit=1] weapon.mainhand",
+      "kill @e[tag=dps_repair,limit=1]",
+      "",
+      "xp add @s -3 levels",
+      "scoreboard players set @s dps_enchanting_cooldown 10",
+      "execute at @s run playsound minecraft:block.note_block.pling player @s ~ ~ ~ 0.5 1.4",
+      `tellraw @s ${snbt([
+        text("✨ Arcane Repair", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        text("Repaired ", { color: "green" }),
+        score("__repair_pct__", "dps_tmp", { color: "aqua" }),
+        text(" durability", { color: "aqua" }),
+      ])}`,
+    ]),
+    second: d.defineFunction("powerup/repair/second", [
+      "$execute as @a[scores={$(skill)_cooldown=1..}] run scoreboard players remove @s $(skill)_cooldown 1",
+    ]),
+  };
+
+  // --- Angler's Luck (fishing) --------------------------------------------
+  const angler = {
+    init: d.defineFunction("powerup/angler/init", [
+      '$function dps:utility/skill_init {skill: "$(skill)", display: "$(display)"}',
+      "$scoreboard objectives add dps_fishing_charges dummy",
+    ]),
+    catch: d.defineFunction("powerup/angler/catch", [
+      "scoreboard players operation @s dps_fishing_charges += @s dps_fish_caught",
+      "# threshold = max(1, 10 - level / 50)",
+      "scoreboard players operation __angler_lvl__ dps_tmp = @s dps_fishing_level",
+      "scoreboard players operation __angler_lvl__ dps_tmp /= 50 dps_globals",
+      "scoreboard players set __angler_threshold__ dps_tmp 10",
+      "scoreboard players operation __angler_threshold__ dps_tmp -= __angler_lvl__ dps_tmp",
+      "execute if score __angler_threshold__ dps_tmp matches ..0 run scoreboard players set __angler_threshold__ dps_tmp 1",
+      "execute if score @s dps_fishing_charges >= __angler_threshold__ dps_tmp run loot give @s loot minecraft:gameplay/fishing/treasure",
+      `execute if score @s dps_fishing_charges >= __angler_threshold__ dps_tmp run tellraw @s ${snbt([
+        text("🐟 Angler's Luck", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        text("Treasure!", { color: "green" }),
+      ])}`,
+      "execute if score @s dps_fishing_charges >= __angler_threshold__ dps_tmp run scoreboard players set @s dps_fishing_charges 0",
+    ]),
+    trigger: d.defineFunction("powerup/angler/trigger", [
+      `tellraw @s ${snbt([text("--------------", { color: "yellow" })])}`,
+      `tellraw @s ${snbt([text("Angler's Luck", { color: "gold" })])}`,
+      "scoreboard players operation __angler_lvl__ dps_tmp = @s dps_fishing_level",
+      "scoreboard players operation __angler_lvl__ dps_tmp /= 50 dps_globals",
+      "scoreboard players set __angler_threshold__ dps_tmp 10",
+      "scoreboard players operation __angler_threshold__ dps_tmp -= __angler_lvl__ dps_tmp",
+      "execute if score __angler_threshold__ dps_tmp matches ..0 run scoreboard players set __angler_threshold__ dps_tmp 1",
+      `tellraw @s ${snbt([
+        text("Charges: ", { color: "gold" }),
+        score("@s", "dps_fishing_charges", { color: "aqua" }),
+        text("/", { color: "aqua" }),
+        score("__angler_threshold__", "dps_tmp", { color: "aqua" }),
+      ])}`,
+    ]),
+  };
+
+  // --- Extended Potions (alchemy) -----------------------------------------
+  const alchemyApply = d.defineFunction("powerup/alchemy/apply", [
+    "$effect give @s $(effect) $(duration) $(amplifier)",
+  ]);
+  const alchemyPotions = POSITIVE_POTIONS.map((potion) => {
+    const slug = potion.potion.replace("minecraft:", "");
+    return {
+      slug,
+      potion: potion.potion,
+      ref: d.defineFunction(`skill/alchemy/potion/${slug}`, [
+        `advancement revoke @s only dps:alchemy_${slug}`,
+        `scoreboard players set __alchemy__ dps_tmp ${potion.duration}`,
+        "scoreboard players operation __alchemy__ dps_tmp *= @s dps_alchemy_level",
+        "scoreboard players operation __alchemy__ dps_tmp /= 400 dps_globals",
+        `scoreboard players add __alchemy__ dps_tmp ${potion.duration}`,
+        "execute store result storage dps:powerup alchemy.duration int 1 run scoreboard players get __alchemy__ dps_tmp",
+        `data modify storage dps:powerup alchemy.effect set value "${potion.effect}"`,
+        `data modify storage dps:powerup alchemy.amplifier set value ${potion.amplifier}`,
+        `function ${alchemyApply.name} with storage dps:powerup alchemy`,
+      ]),
+    };
+  });
+
+  // --- Arrow Recovery (archery) -------------------------------------------
+  const arrowRecovery = {
+    recover: d.defineFunction("skill/archery/recover", [
+      "advancement revoke @s only dps:archery_recover",
+      "# chance = min(75, level / 7)",
+      "scoreboard players operation __archery__ dps_tmp = @s dps_archery_level",
+      "scoreboard players operation __archery__ dps_tmp /= 7 dps_globals",
+      "execute if score __archery__ dps_tmp matches 75.. run scoreboard players set __archery__ dps_tmp 75",
+      "execute store result score __archery_roll__ dps_tmp run random value 1..100",
+      "execute if score __archery_roll__ dps_tmp <= __archery__ dps_tmp run give @s minecraft:arrow 1",
+      "execute if score __archery_roll__ dps_tmp <= __archery__ dps_tmp run playsound minecraft:entity.item.pickup player @s ~ ~ ~ 0.3 1.6",
+    ]),
+  };
+
+  // --- Twins (taming) ------------------------------------------------------
+  const twins = BREEDABLE_ANIMALS.map((animal) => {
+    const slug = animal.replace("minecraft:", "");
+    return {
+      animal,
+      slug,
+      ref: d.defineFunction(`skill/taming/twin/${slug}`, [
+        `advancement revoke @s only dps:taming_twin_${slug}`,
+        "# chance = min(50, level / 10)",
+        "scoreboard players operation __taming__ dps_tmp = @s dps_taming_level",
+        "scoreboard players operation __taming__ dps_tmp /= 10 dps_globals",
+        "execute if score __taming__ dps_tmp matches 50.. run scoreboard players set __taming__ dps_tmp 50",
+        "execute store result score __taming_roll__ dps_tmp run random value 1..100",
+        "execute if score __taming_roll__ dps_tmp > __taming__ dps_tmp run return fail",
+        `execute at @e[type=${animal},distance=..8,tag=!dps_twin,predicate=dps:baby,sort=nearest,limit=1] run summon ${animal} ~ ~ ~ {Age:-24000,Tags:[dps_twin]}`,
+      ]),
+    };
+  });
+
+  // --- Charged Fall Guard (acrobatics) ------------------------------------
+  const fallGuardSet = d.defineFunction("powerup/fall_guard/set", [
+    "$attribute @s minecraft:fall_damage_multiplier base set $(multiplier)",
+  ]);
+  const fallGuard = {
+    init: d.defineFunction("powerup/fall_guard/init", [
+      '$function dps:utility/skill_init {skill: "$(skill)", display: "$(display)"}',
+      "$scoreboard objectives add dps_acrobatics_charges dummy",
+      "$scoreboard objectives add dps_acrobatics_charges_max dummy",
+      "$scoreboard objectives add dps_acrobatics_cooldown dummy",
+      "$scoreboard objectives add dps_acrobatics_cooldown_max dummy",
+      "$scoreboard objectives add dps_acrobatics_guard dummy",
+    ]),
+    levelup: d.defineFunction("powerup/fall_guard/levelup", [
+      "# Seed the scores so later selectors match from the first level up.",
+      "$scoreboard players operation @s dps_acrobatics_charges = @s dps_acrobatics_charges",
+      "$scoreboard players operation @s dps_acrobatics_cooldown = @s dps_acrobatics_cooldown",
+      "",
+      "$scoreboard players operation @s dps_acrobatics_charges_max = @s dps_acrobatics_level",
+      "$scoreboard players operation @s dps_acrobatics_charges_max /= 100 dps_globals",
+      "$scoreboard players add @s dps_acrobatics_charges_max 1",
+      "",
+      "$scoreboard players operation @s dps_acrobatics_cooldown_max = @s dps_acrobatics_level",
+      "$scoreboard players operation @s dps_acrobatics_cooldown_max /= 2 dps_globals",
+      "$scoreboard players remove @s dps_acrobatics_cooldown_max 300",
+      "$scoreboard players operation @s dps_acrobatics_cooldown_max *= -1 dps_globals",
+    ]),
+    apply: d.defineFunction("powerup/fall_guard/apply", [
+      "# Not leveled yet: nothing to guard with.",
+      "execute unless score @s dps_acrobatics_charges_max matches 1.. run return fail",
+      "# Estimated fall damage in tenths: FallDistance * 10 - 30.",
+      "execute store result score __fall__ dps_tmp run data get entity @s FallDistance 10",
+      "scoreboard players remove __fall__ dps_tmp 30",
+      "# Not falling: restore normal fall damage.",
+      "execute if score __fall__ dps_tmp matches ..0 if score @s dps_acrobatics_guard matches 1.. run attribute @s minecraft:fall_damage_multiplier base set 1",
+      "execute if score __fall__ dps_tmp matches ..0 run scoreboard players set @s dps_acrobatics_guard 0",
+      "execute if score __fall__ dps_tmp matches ..0 run return fail",
+      "# Already guarding this fall.",
+      "execute if score @s dps_acrobatics_guard matches 1.. run return fail",
+      "# Needs a charge.",
+      "execute if score @s dps_acrobatics_charges matches 0..0 run return fail",
+      "scoreboard players remove @s dps_acrobatics_charges 1",
+      "scoreboard players set @s dps_acrobatics_guard 1",
+      "",
+      "# Reduction in tenths: 40 + level / 5 (2 hearts + 1 heart per 50 levels).",
+      "scoreboard players operation __fall_reduce__ dps_tmp = @s dps_acrobatics_level",
+      "scoreboard players operation __fall_reduce__ dps_tmp /= 5 dps_globals",
+      "scoreboard players add __fall_reduce__ dps_tmp 40",
+      "",
+      "# multiplier = max(0, (damage - reduction) / damage)",
+      "scoreboard players operation __fall_ratio__ dps_tmp = __fall__ dps_tmp",
+      "scoreboard players operation __fall_ratio__ dps_tmp -= __fall_reduce__ dps_tmp",
+      "execute if score __fall_ratio__ dps_tmp matches ..0 run scoreboard players set __fall_ratio__ dps_tmp 0",
+      "scoreboard players operation __fall_ratio__ dps_tmp *= 1000 dps_globals",
+      "scoreboard players operation __fall_ratio__ dps_tmp /= __fall__ dps_tmp",
+      "execute store result storage dps:powerup fall.multiplier double 0.001 run scoreboard players get __fall_ratio__ dps_tmp",
+      `function ${fallGuardSet.name} with storage dps:powerup fall`,
+    ]),
+    second: d.defineFunction("powerup/fall_guard/second", [
+      "$execute as @a[scores={$(skill)_cooldown=1..}] if score @s $(skill)_charges < @s $(skill)_charges_max run scoreboard players remove @s $(skill)_cooldown 1",
+      "$execute as @a if score @s $(skill)_cooldown > @s $(skill)_cooldown_max run scoreboard players operation @s $(skill)_cooldown = @s $(skill)_cooldown_max",
+      "$execute as @a[scores={$(skill)_cooldown=0..0}] if score @s $(skill)_charges < @s $(skill)_charges_max run scoreboard players add @s $(skill)_charges 1",
+      "$execute as @a[scores={$(skill)_cooldown=0..0}] if score @s $(skill)_charges < @s $(skill)_charges_max run scoreboard players operation @s $(skill)_cooldown = @s $(skill)_cooldown_max",
+    ]),
+    trigger: d.defineFunction("powerup/fall_guard/trigger", [
+      `tellraw @s ${snbt([text("--------------", { color: "yellow" })])}`,
+      `tellraw @s ${snbt([text("Charged Fall Guard", { color: "gold" })])}`,
+      `tellraw @s ${snbt([
+        text("Charges: ", { color: "gold" }),
+        score("@s", "dps_acrobatics_charges", { color: "aqua" }),
+        text("/", { color: "aqua" }),
+        score("@s", "dps_acrobatics_charges_max", { color: "aqua" }),
+      ])}`,
+      `tellraw @s ${snbt([
+        text("Recharge: ", { color: "gold" }),
+        score("@s", "dps_acrobatics_cooldown", { color: "aqua" }),
+        text("s", { color: "aqua" }),
+      ])}`,
+    ]),
+  };
+
   const triggerSkill = d.defineFunction("triggers/skill/", [
     `$tellraw @s ${snbt([
       text("=== [", { color: "yellow" }),
@@ -699,6 +1070,8 @@ export function build(): Datapack {
   const triggerFor = (skill: SkillConfig): FunctionRef => {
     if (skill.powerup === "effect") return effect.trigger;
     if (skill.powerup === "tree_cutter") return tree.trigger;
+    if (skill.powerup === "fall_guard") return fallGuard.trigger;
+    if (skill.powerup === "angler") return angler.trigger;
     return utility.nop;
   };
 
@@ -714,6 +1087,18 @@ export function build(): Datapack {
       loadLines.push(
         `function dps:powerup/tree_cutter/init {skill: "${scoreboard}", display: "${skill.display}"}`,
       );
+    } else if (skill.powerup === "fall_guard") {
+      loadLines.push(
+        `function dps:powerup/fall_guard/init {skill: "${scoreboard}", display: "${skill.display}"}`,
+      );
+    } else if (skill.powerup === "repair") {
+      loadLines.push(
+        `function dps:powerup/repair/init {skill: "${scoreboard}", display: "${skill.display}"}`,
+      );
+    } else if (skill.powerup === "angler") {
+      loadLines.push(
+        `function dps:powerup/angler/init {skill: "${scoreboard}", display: "${skill.display}"}`,
+      );
     } else {
       loadLines.push(
         `function dps:utility/skill_init {skill: "${scoreboard}", display: "${skill.display}"}`,
@@ -725,16 +1110,25 @@ export function build(): Datapack {
     );
     d.defineFunction(`skill/${skill.name}/load`, loadLines);
 
-    const tickLines: Lines = [
+    const tickLines: Lines = [];
+    if (skill.powerup === "angler") {
+      tickLines.push(
+        `execute as @a[scores={dps_fish_caught=1..}] run function ${angler.catch.name}`,
+        "",
+      );
+    }
+    tickLines.push(
       `function dps:skill/${skill.name}/actions {function: "dps:utility/give_xp/"}`,
       "",
-    ];
+    );
     const success =
       skill.powerup === "effect"
         ? "dps:powerup/effect/levelup"
         : skill.powerup === "tree_cutter"
           ? "dps:powerup/tree_cutter/levelup"
-          : "dps:utility/nop";
+          : skill.powerup === "fall_guard"
+            ? "dps:powerup/fall_guard/levelup"
+            : "dps:utility/nop";
     tickLines.push(
       `execute as @a run function ${levelup.name} {"skill": "${scoreboard}", success: "${success}"}`,
       "",
@@ -746,6 +1140,10 @@ export function build(): Datapack {
     } else if (skill.powerup === "tree_cutter") {
       tickLines.push(
         `execute as @a if predicate dps:wearing_${skill.name}_tool run function dps:powerup/tree_cutter/wearing_tool {"skill": "${scoreboard}"}`,
+      );
+    } else if (skill.powerup === "fall_guard") {
+      tickLines.push(
+        `execute as @a run function ${fallGuard.apply.name}`,
       );
     } else {
       tickLines.push("");
@@ -775,6 +1173,14 @@ export function build(): Datapack {
       d.defineFunction(`skill/${skill.name}/second`, [
         `function dps:powerup/tree_cutter/second {skill: "${scoreboard}"}`,
       ]);
+    } else if (skill.powerup === "repair") {
+      d.defineFunction(`skill/${skill.name}/second`, [
+        `function ${repair.second.name} {skill: "${scoreboard}"}`,
+      ]);
+    } else if (skill.powerup === "fall_guard") {
+      d.defineFunction(`skill/${skill.name}/second`, [
+        `function ${fallGuard.second.name} {skill: "${scoreboard}"}`,
+      ]);
     }
   }
 
@@ -795,9 +1201,11 @@ export function build(): Datapack {
     "scoreboard players set 9 dps_globals 9",
     "scoreboard players set 10 dps_globals 10",
     "scoreboard players set 38 dps_globals 38",
+    "scoreboard players set 50 dps_globals 50",
     "scoreboard players set 100 dps_globals 100",
     "scoreboard players set 158 dps_globals 158",
     "scoreboard players set 300 dps_globals 300",
+    "scoreboard players set 400 dps_globals 400",
     "",
     "scoreboard objectives add dps_total_level dummy",
     "",
@@ -811,7 +1219,10 @@ export function build(): Datapack {
     "",
     ...SKILLS.filter(
       (skill) =>
-        skill.powerup === "effect" || skill.powerup === "tree_cutter",
+        skill.powerup === "effect" ||
+        skill.powerup === "tree_cutter" ||
+        skill.powerup === "repair" ||
+        skill.powerup === "fall_guard",
     ).map((skill) => `function dps:skill/${skill.name}/second`),
   ]);
 
@@ -906,6 +1317,110 @@ export function build(): Datapack {
     });
   }
 
+  d.itemTag("farming_tool", ["#minecraft:hoes"]);
+  d.blockTag("anvils", [...ANVIL_BLOCKS]);
+  d.blockTag("crops", HARVEST_CROPS.map((crop) => crop.block));
+
+  d.predicate("baby", {
+    type: "minecraft:entity_properties",
+    entity: "this",
+    predicate: { "minecraft:flags": { is_baby: true } },
+  });
+
+  // Harvest Moon: use a hoe on a block (i.e. till the ground) to harvest the
+  // mature crops around you. `item_used_on_block` only fires when the use
+  // actually does something, and a hoe on a crop does nothing, so tilling is
+  // the reliable trigger.
+  d.advancement("farming_harvest", {
+    criteria: {
+      harvest: {
+        trigger: "minecraft:item_used_on_block",
+        conditions: {
+          location: {
+            type: "minecraft:match_tool",
+            predicate: { items: "#dps:farming_tool" },
+          },
+        },
+      },
+    },
+    rewards: { function: harvest.use.name },
+  });
+
+  // Arcane Repair: sneak + right-click an anvil.
+  d.advancement("enchanting_repair", {
+    criteria: {
+      repair: {
+        trigger: "minecraft:default_block_use",
+        conditions: {
+          player: {
+            type: "minecraft:entity_properties",
+            entity: "this",
+            predicate: { "minecraft:flags": { is_sneaking: true } },
+          },
+          location: {
+            type: "minecraft:location_check",
+            predicate: { block: { blocks: "#dps:anvils" } },
+          },
+        },
+      },
+    },
+    rewards: { function: repair.use.name },
+  });
+
+  // Arrow Recovery: one of your arrows hit an entity.
+  d.advancement("archery_recover", {
+    criteria: {
+      recover: {
+        trigger: "minecraft:player_hurt_entity",
+        conditions: {
+          damage: {
+            type: {
+              direct_entity: { "minecraft:entity_type": "minecraft:arrow" },
+            },
+          },
+        },
+      },
+    },
+    rewards: { function: arrowRecovery.recover.name },
+  });
+
+  for (const twin of twins) {
+    d.advancement(`taming_twin_${twin.slug}`, {
+      criteria: {
+        breed: {
+          trigger: "minecraft:bred_animals",
+          conditions: {
+            child: {
+              type: "minecraft:entity_properties",
+              entity: "this",
+              predicate: { "minecraft:entity_type": twin.animal },
+            },
+          },
+        },
+      },
+      rewards: { function: twin.ref.name },
+    });
+  }
+
+  for (const potion of alchemyPotions) {
+    d.advancement(`alchemy_${potion.slug}`, {
+      criteria: {
+        drink: {
+          trigger: "minecraft:consume_item",
+          conditions: {
+            item: {
+              items: "minecraft:potion",
+              predicates: {
+                "minecraft:potion_contents": { potions: potion.potion },
+              },
+            },
+          },
+        },
+      },
+      rewards: { function: potion.ref.name },
+    });
+  }
+
   const uninstallObjectives = [
     "dps",
     "dps.info",
@@ -934,6 +1449,21 @@ export function build(): Datapack {
           "_charges_max",
         );
       }
+      if (skill.powerup === "repair") {
+        suffixes.push("_cooldown");
+      }
+      if (skill.powerup === "angler") {
+        suffixes.push("_charges");
+      }
+      if (skill.powerup === "fall_guard") {
+        suffixes.push(
+          "_charges",
+          "_charges_max",
+          "_cooldown",
+          "_cooldown_max",
+          "_guard",
+        );
+      }
       return suffixes.map((suffix) => `${base}${suffix}`);
     }),
     ...Object.values(ACTIONS).flatMap((actions) =>
@@ -945,9 +1475,11 @@ export function build(): Datapack {
     objectives: uninstallObjectives,
     storage: [
       "dps:powerup effect",
+      "dps:powerup alchemy",
+      "dps:powerup fall",
       ...SKILLS.map((skill) => `dps:skill ${skill.name}`),
     ],
-    kill: ["@e[tag=dps_durability]"],
+    kill: ["@e[tag=dps_durability]", "@e[tag=dps_repair]", "@e[tag=dps_twin]"],
     schedules: ["dps:second"],
   });
 

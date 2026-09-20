@@ -20,7 +20,7 @@ with `[<]` and `[>]` buttons.
 4. Craft a **plan** for any other building (one plank plus the building's item)
    and place it where you want it. The plank's wood decides the sign you get,
    e.g. spruce planks make a spruce sign.
-5. Stand at a building and run `/trigger aom.menu` to staff its jobs.
+5. **Right-click a building's sign** to open its menu and staff its jobs.
 6. Hire **collectors** to generate resources and **bankers** to store them.
    Unlock jobs grant recipe knowledge to every town member.
 
@@ -30,7 +30,9 @@ with `[<]` and `[>]` buttons.
 | --- | --- |
 | `/trigger aom.guide` | Prints this guide in chat with page buttons. |
 | `/trigger aom.town_info` | Prints your town's information in chat. |
-| `/trigger aom.menu` | Opens the looked-at building's menu, or the build menu. |
+
+Menus are opened by **right-clicking a building's sign**; there is no menu
+command.
 
 ## Crafting is gated
 
@@ -51,7 +53,7 @@ another building's unlock job is staffed (see the map below).
 ```
 Blacksmith -> Coppersmith -> Gold smith -> Jeweller
 Library -> School -> University
-Farm unlocks all windmill plans
+Farm unlocks the windmill plan
 ```
 
 ## Towns
@@ -66,7 +68,8 @@ Farm unlocks all windmill plans
 
 ## Jobs
 
-Jobs are **permanent** — a worker can never be fired.
+Jobs are **permanent**, except the Custom building's **Hired help**, which can
+be fired.
 
 | Kind | Limit | Effect |
 | --- | --- | --- |
@@ -83,7 +86,7 @@ Jobs are **permanent** — a worker can never be fired.
 - Generation is capped by capacity; anything over the cap is discarded.
 - Deposit and Withdraw move **1**, **16**, **64** or **all**.
 - Generation rates run from **1 / minute** (bulk materials) through
-  **1 / 2**, **1 / 5**, **1 / 10** up to **1 / 20 minutes** (rare finds).
+  **1 / 2**, **1 / 5** up to **1 / 20 minutes** (rare finds).
 - The mine rolls a weighted ore table; the quarry has a digger per stone; the
   butcher and fisher have their own tables.
 - Only loaded chunks produce, and there is no catch-up for time away.
@@ -99,8 +102,8 @@ storages (the mine's ores, the fisher's fish) unlock one item at a time.
 
 Every plan uses **one plank** that decides the sign type — oak planks give an
 oak sign, spruce planks a spruce sign, and so on. Townhouses use two planks.
-Place the sign first, then use the plan on it (or look at the sign and use
-`/trigger aom.menu`).
+Place the sign first, then use the plan on it. Plans are the only way to build a
+new building.
 
 ## Special mechanics
 
@@ -127,7 +130,7 @@ below lists what each building provides; exact recipes and rates are in
 | Civic | Townhall, Townhouse |
 | Extraction | Lumbermill, Mine, Quarry, Docks, Ice House |
 | Industry | Stone cutter, Blacksmith, Gold smith, Jeweller, Coppersmith, Kiln, Mason's Yard |
-| Agriculture | Farm, Wheat/Carrot/Potato/Beetroot/Melon/Pumpkin/Sugar cane windmills |
+| Agriculture | Farm, Windmill |
 | Husbandry | Barn, Leather tanner, Shepherd, Spinnery, Weaver, Apiary |
 | Food | Baker, Butcher, Brewery, Fisher |
 | Crafting | Weapon smith, Fletcher, Glass blower, Painter, Redstone Workshop, Bard, Armory |
@@ -152,7 +155,7 @@ is broken some other way, the once-per-second scan packs it the same way.
 
 ## Tips and troubleshooting
 
-- **"You must look at a sign"** — stand close and aim straight at the sign.
+- **Nothing happens** — stand close and right-click the building's sign.
 - **"No unemployed villagers"** — population must exceed staffed jobs; build
   townhouses.
 - **"You have not discovered this resource yet"** — pick the item up once.

@@ -249,8 +249,8 @@ Unlocks (Blacksmith, 1 villager):
  - `bucket` (also Farm)
  - `shears` (also Shepherd)
  - `saddle` (also Leather tanner, Barn)
- - `flint_and_steel` (also University)
- - `shield` (also Weaver)
+ - `flint_and_steel` (also School)
+ - `shield`
  - `iron_helmet` (also Armory), `iron_chestplate` (also Armory),
    `iron_leggings` (also Armory), `iron_boots` (also Armory)
  - `iron_axe`, `iron_pickaxe`, `iron_shovel`
@@ -428,12 +428,11 @@ Unlocks (Spinner, 1 villager):
  - `white_wool` (from 4 string), `string` (from 1 wool)
  - all 16 `*_wool` dyeing recipes
  - `white_carpet` and all 16 `*_carpet` recipes
- - `bed` (also Weaver)
  - `lead` (also Shepherd, Barn)
  - `bundle` (also Leather tanner)
 
 ### Weaver
-Weaves banners, patterns and beds.
+Weaves banners and patterns.
  - Craft: Wool
  - Unlock (Weaver): the banner recipes below
 
@@ -444,8 +443,6 @@ Unlocks (Weaver, 1 villager):
    `creeper_banner_pattern`, `field_masoned_banner_pattern`,
    `flower_banner_pattern`, `mojang_banner_pattern`, `skull_banner_pattern`
    (the pattern items themselves are found, not crafted, so they cannot be gated)
- - `shield` (also Blacksmith)
- - `bed` (also Spinnery)
 
 ### Apiary
 Keeps bees and harvests honey and wax.
@@ -624,20 +621,20 @@ Teaches the town's basics
  - Craft: Bookshelf
  - Requires: Library
  - Unlock (Teacher): unlocks the University plan
+ - Unlock (Firekeeper): the fire recipes below
 
 Unlocks (Teacher, 1 villager):
  - `aom:plan/university`
+
+Unlocks (Firekeeper, 1 villager):
+ - `flint_and_steel` (also Blacksmith)
+ - `fire_charge`
 
 ### University
 Research different technologies
  - Craft: Obsidian
  - Requires: School
- - Unlock (Firekeeper): the fire recipes below
  - Unlock (Portal): lets town members travel through Nether portals
-
-Unlocks (Firekeeper, 1 villager):
- - `flint_and_steel` (also Blacksmith)
- - `fire_charge`
 
 Portal (1 villager, mechanic — not a recipe):
  - Portals can always be lit and entered, but while Portal is unstaffed a town
@@ -683,6 +680,7 @@ Used for custom things that are not in this modpack yet
  - Craft: Stick
  - Add villagers
  - Hire villagers (no benefit)
+ - Fire workers (no benefit)
  - Unlocks: none.
 
 ---
@@ -706,11 +704,10 @@ job staffed.
 | --- | --- |
 | `furnace` | Stone cutter, Blacksmith |
 | `bucket` | Blacksmith, Farm |
-| `flint_and_steel` | Blacksmith, University |
+| `flint_and_steel` | Blacksmith, School |
 | `shears` | Blacksmith, Shepherd |
 | `cauldron` | Blacksmith, Brewery |
 | `saddle` | Blacksmith, Leather tanner, Barn |
-| `shield` | Blacksmith, Weaver |
 | `anvil` | Blacksmith, Armory |
 | `iron_helmet` | Blacksmith, Armory |
 | `iron_chestplate` | Blacksmith, Armory |
@@ -733,7 +730,6 @@ job staffed.
 | `glow_item_frame` | Leather tanner, Cartographer's Guild |
 | `bundle` | Leather tanner, Spinnery |
 | `lead` | Shepherd, Spinnery, Barn |
-| `bed` | Spinnery, Weaver |
 | `note_block` | Redstone Workshop, Bard |
 | `target` | Redstone Workshop, Fletcher |
 | `daylight_detector` | Redstone Workshop, Glass blower |

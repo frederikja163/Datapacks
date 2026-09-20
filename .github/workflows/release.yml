@@ -32,18 +32,16 @@ jobs:
 
           packs=()
 
-          # TypeScript packs live under packs/<name>/src and share mcgen/
-          shared=0
-          if printf '%s\n' "$changed" | grep -qE '^(mcgen|scripts)/|^(package\.json|tsconfig\.json|bun\.lock)$'; then
-            shared=1
-          fi
+          # Only a pack's own files trigger its release. Shared code under
+          # mcgen/ or scripts/ does not: a pack is released when it (or its
+          # VERSION) changes, so a shared-only change releases nothing.
           for dir in packs/*/; do
             name="$(basename "$dir")"
             # only releasable packs: they must have a version file
             if [ ! -f "packs/${name}/VERSION" ]; then
               continue
             fi
-            if [ "$shared" = 1 ] || printf '%s\n' "$changed" | grep -q "^packs/${name}/"; then
+            if printf '%s\n' "$changed" | grep -q "^packs/${name}/"; then
               packs+=("$name")
             fi
           done

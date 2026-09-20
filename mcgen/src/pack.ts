@@ -27,6 +27,8 @@ export class Datapack {
     readonly namespace: string,
     readonly version: Version,
     readonly description: string | Record<string, unknown>,
+    /** Human label used by the install/uninstall chat messages. */
+    readonly label: string = namespace,
   ) {}
 
   ref(path: string): FunctionRef {

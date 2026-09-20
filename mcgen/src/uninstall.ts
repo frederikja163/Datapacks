@@ -6,6 +6,7 @@
 // remove it. Every pack registers one so the workflow is always the same.
 
 import { tellraw } from "./commands.ts";
+import { installTag } from "./install.ts";
 import type { Datapack } from "./pack.ts";
 import { text } from "./text.ts";
 
@@ -48,15 +49,16 @@ export function defineUninstall(d: Datapack, spec: UninstallSpec): void {
     sections.push(kill.map((selector) => `kill ${selector}`));
   }
 
-  const tags = clean(spec.tags);
-  if (tags.length) {
-    sections.push(tags.map((tag) => `tag @a remove ${tag}`));
-  }
+  sections.push([
+    `tag @a remove ${installTag(d.namespace)}`,
+    ...(clean(spec.tags).map((tag) => `tag @a remove ${tag}`)),
+  ]);
 
   sections.push([
     tellraw("@a", [
       text(`[${d.namespace}] `, { color: "gray" }),
-      text("Uninstalled. Remove the datapack and run ", { color: "white" }),
+      text(`${d.label} removed. `, { color: "red" }),
+      text("Delete the datapack and run ", { color: "white" }),
       text("/reload", { color: "aqua" }),
       text(".", { color: "white" }),
     ]),

@@ -2,6 +2,7 @@ import {
   Datapack,
   anchors,
   anchorOf,
+  defineInstall,
   defineUninstall,
   findAnchorAt,
   gamerule,
@@ -187,6 +188,7 @@ export function build(): Datapack {
     "aom",
     latestVersion(),
     "Age of Minecraft — found and grow a town.",
+    "Age of Minecraft",
   );
 
   // -------------------------------------------------------------------------
@@ -2613,6 +2615,8 @@ export function build(): Datapack {
 
   d.onLoad(load);
   d.onTick(tick);
+
+  defineInstall(d);
 
   defineUninstall(d, {
     objectives: [

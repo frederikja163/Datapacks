@@ -1,5 +1,6 @@
 import {
   Datapack,
+  defineInstall,
   defineUninstall,
   latestVersion,
   nbt,
@@ -36,6 +37,7 @@ export function build(): Datapack {
     "soulbound",
     latestVersion(),
     "Adds the Soulbound enchantment: keep enchanted items through death.",
+    "Soulbound",
   );
 
   d.enchantment("soulbound", {
@@ -221,6 +223,8 @@ export function build(): Datapack {
 
   d.onLoad(load);
   d.onTick(tick);
+
+  defineInstall(d);
 
   defineUninstall(d, {
     objectives: [

@@ -1,5 +1,6 @@
 import {
   Datapack,
+  defineInstall,
   defineUninstall,
   latestVersion,
   objectiveAdd,
@@ -24,6 +25,7 @@ export function build(): Datapack {
     "imsp",
     PACK_FORMAT,
     "An improvement to the normal spectator.",
+    "Improved Spectator",
   );
 
   const load = d.defineFunction("load", [
@@ -157,6 +159,8 @@ export function build(): Datapack {
 
   d.onLoad(load);
   d.onTick(tick);
+
+  defineInstall(d);
 
   defineUninstall(d, {
     objectives: [

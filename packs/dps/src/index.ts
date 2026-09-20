@@ -1,5 +1,6 @@
 import {
   Datapack,
+  defineInstall,
   defineUninstall,
   latestVersion,
   nbt,
@@ -239,6 +240,7 @@ export function build(): Datapack {
     "dps",
     latestVersion(),
     "Data Pack Skills. Inspired by MCMMO, but in datapack form",
+    "Data Pack Skills",
   );
 
   const utility = {
@@ -1247,6 +1249,8 @@ export function build(): Datapack {
 
   d.onLoad(load);
   d.onTick(tick);
+
+  defineInstall(d);
 
   d.itemModifier("make_consumable", {
     type: "minecraft:set_components",

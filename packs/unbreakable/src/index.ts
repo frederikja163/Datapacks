@@ -1,5 +1,6 @@
 import {
   Datapack,
+  defineInstall,
   defineUninstall,
   latestVersion,
 } from "../../../mcgen/src/index.ts";
@@ -11,6 +12,7 @@ export function build(): Datapack {
     "unbreakable",
     latestVersion(),
     "Adds the Unbreakable treasure enchantment.",
+    "Unbreakable",
   );
 
   d.enchantment("unbreakable", {
@@ -52,6 +54,8 @@ export function build(): Datapack {
   d.vanillaTag("enchantment", "treasure", [
     { id: ENCHANTMENT, required: false },
   ]);
+
+  defineInstall(d);
 
   // v2 is pure content; the only removable state is the objectives left behind
   // by the old item-component version.

@@ -218,6 +218,10 @@ export interface BuildingType {
   readonly townhall?: boolean;
   /** Contributes villagers to the town's population. */
   readonly population?: boolean;
+  /** Shows a Remove button to take villagers back (default false). */
+  readonly removeVillagers?: boolean;
+  /** Shows a Fire button for every job, letting workers be dismissed. */
+  readonly fire?: boolean;
   /** Unlock ids that must be staffed before the plan can be crafted. */
   readonly requires?: readonly string[];
   /** Plan ingredients besides the wood plank. */
@@ -258,19 +262,7 @@ const CROPS = [
 const MEATS = ["raw_beef", "porkchop", "chicken", "mutton", "rabbit"].map(resource);
 const FISH = ["cod", "salmon", "tropical_fish", "pufferfish"].map(resource);
 
-const WINDMILL_IDS = [
-  "windmill_wheat",
-  "windmill_carrot",
-  "windmill_potato",
-  "windmill_beetroot",
-  "windmill_melon",
-  "windmill_pumpkin",
-  "windmill_sugar_cane",
-];
-
-const WINDMILL_PLANS = WINDMILL_IDS.flatMap((id) =>
-  WOODS.map((wood) => planRecipe(id, wood.name)),
-);
+const WINDMILL_PLANS = WOODS.map((wood) => planRecipe("windmill", wood.name));
 
 const RECIPES_BY_BUILDING: Record<string, string[]> = {
   lumbermill: rList(
@@ -498,9 +490,6 @@ const RECIPES_BY_BUILDING: Record<string, string[]> = {
     ...dyed("_wool"),
     ...colored("_carpet"),
     ...dyed("_carpet"),
-    ...colored("_bed"),
-    ...dyed("_bed"),
-    "minecraft:straw_bed",
     "minecraft:lead",
     "minecraft:bundle",
   ),
@@ -514,10 +503,6 @@ const RECIPES_BY_BUILDING: Record<string, string[]> = {
     "minecraft:flower_banner_pattern",
     "minecraft:mojang_banner_pattern",
     "minecraft:skull_banner_pattern",
-    "minecraft:shield",
-    ...colored("_bed"),
-    ...dyed("_bed"),
-    "minecraft:straw_bed",
   ),
   beekeeper: rList(
     "minecraft:beehive",
@@ -632,8 +617,8 @@ const RECIPES_BY_BUILDING: Record<string, string[]> = {
     "minecraft:lectern",
   ),
   enchanter: rList("minecraft:enchanting_table"),
-  teacher: rList("minecraft:flint_and_steel"),
-  firekeeper: rList("minecraft:fire_charge", "minecraft:ender_chest"),
+  teacher: WOODS.map((wood) => planRecipe("university", wood.name)),
+  firekeeper: rList("minecraft:flint_and_steel", "minecraft:fire_charge"),
   cartographer: rList(
     "minecraft:cartography_table",
     "minecraft:map",
@@ -700,22 +685,25 @@ function digger(wood: Resource): Job[] {
   ];
 }
 
-function windmill(
-  id: string,
-  label: string,
-  crop: string,
-  planExtra: ItemId,
-): BuildingType {
-  const res = resource(crop);
-  return {
-    id,
-    label,
-    category: "Agriculture",
-    description: `Farms and stores ${res.label.toLowerCase()}.`,
-    requires: ["farmer"],
-    planExtra: [planExtra],
-    jobs: chopper(res),
-  };
+const CROP_FARMER_LABELS: Record<string, string> = {
+  wheat: "Wheat farmer",
+  carrot: "Carrot farmer",
+  potato: "Potato farmer",
+  beetroot: "Beetroot farmer",
+  melon_slice: "Melon farmer",
+  pumpkin: "Pumpkin farmer",
+  sugar_cane: "Sugar cane farmer",
+};
+
+function cropFarmer(crop: Resource): Job[] {
+  return [
+    generator(
+      `${crop.id}_farmer`,
+      CROP_FARMER_LABELS[crop.id] ?? `${crop.label} farmer`,
+      crop.id,
+    ),
+    banker(`${crop.id}_banker`, `${crop.label} banker`, crop.id),
+  ];
 }
 
 export const BUILDINGS: readonly BuildingType[] = [
@@ -773,7 +761,7 @@ export const BUILDINGS: readonly BuildingType[] = [
           { weight: 23 },
         ],
       },
-      ...ORES.map((res) => banker(`${res.id}_miner`, `${res.label} miner`, res.id)),
+      ...ORES.map((res) => banker(`${res.id}_banker`, `${res.label} banker`, res.id)),
     ],
   },
   {
@@ -881,13 +869,15 @@ export const BUILDINGS: readonly BuildingType[] = [
       ]),
     ],
   },
-  windmill("windmill_wheat", "Wheat windmill", "wheat", "minecraft:wheat"),
-  windmill("windmill_carrot", "Carrot windmill", "carrot", "minecraft:carrot"),
-  windmill("windmill_potato", "Potato windmill", "potato", "minecraft:potato"),
-  windmill("windmill_beetroot", "Beetroot windmill", "beetroot", "minecraft:beetroot_seeds"),
-  windmill("windmill_melon", "Melon windmill", "melon_slice", "minecraft:melon_seeds"),
-  windmill("windmill_pumpkin", "Pumpkin windmill", "pumpkin", "minecraft:pumpkin"),
-  windmill("windmill_sugar_cane", "Sugar cane windmill", "sugar_cane", "minecraft:sugar_cane"),
+  {
+    id: "windmill",
+    label: "Windmill",
+    category: "Agriculture",
+    description: "Farms and stores every crop.",
+    requires: ["farmer"],
+    planExtra: ["minecraft:wheat"],
+    jobs: CROPS.flatMap(cropFarmer),
+  },
   {
     id: "barn",
     label: "Barn",
@@ -987,23 +977,16 @@ export const BUILDINGS: readonly BuildingType[] = [
     jobs: [
       unlock("fisher", "Fisher", RECIPES_BY_BUILDING.fisher!),
       {
-        id: "coastal_fisher",
-        label: "Coastal fisher",
+        id: "fisherman",
+        label: "Fisher",
         kind: "generation",
         interval: 2,
         table: [
-          { resource: "cod", weight: 1 },
-          { resource: "salmon", weight: 1 },
-        ],
-      },
-      {
-        id: "deep_fisher",
-        label: "Deep fisher",
-        kind: "generation",
-        interval: 10,
-        table: [
-          { resource: "tropical_fish", weight: 1 },
-          { resource: "pufferfish", weight: 1 },
+          { resource: "cod", weight: 550 },
+          { resource: "salmon", weight: 320 },
+          { resource: "pufferfish", weight: 80 },
+          { resource: "tropical_fish", weight: 40 },
+          { weight: 10 },
         ],
       },
       ...FISH.map((res) => banker(`${res.id}_banker`, `${res.label} banker`, res.id)),
@@ -1083,7 +1066,10 @@ export const BUILDINGS: readonly BuildingType[] = [
     description: "Teaches the town's basics.",
     requires: ["librarian"],
     planExtra: ["minecraft:bookshelf"],
-    jobs: [unlock("teacher", "Teacher", RECIPES_BY_BUILDING.teacher!)],
+    jobs: [
+      unlock("teacher", "Teacher", RECIPES_BY_BUILDING.teacher!),
+      unlock("firekeeper", "Firekeeper", RECIPES_BY_BUILDING.firekeeper!),
+    ],
   },
   {
     id: "university",
@@ -1093,7 +1079,6 @@ export const BUILDINGS: readonly BuildingType[] = [
     requires: ["teacher"],
     planExtra: ["minecraft:obsidian"],
     jobs: [
-      unlock("firekeeper", "Firekeeper", RECIPES_BY_BUILDING.firekeeper!),
       { id: "portal", label: "Portal", kind: "mechanic", mechanic: "portal" },
     ],
   },
@@ -1119,6 +1104,8 @@ export const BUILDINGS: readonly BuildingType[] = [
     category: "Special",
     description: "A blank building for whatever the town needs.",
     population: true,
+    removeVillagers: true,
+    fire: true,
     planExtra: ["minecraft:stick"],
     jobs: [{ id: "hire", label: "Hired help", kind: "mechanic", mechanic: "noop" }],
   },
@@ -1284,12 +1271,6 @@ export const TOWNHALL_ACTIONS = {
   pageNext: 11,
 } as const;
 
-export const POPULATION_ACTIONS = {
-  addVillager: 1,
-  removeVillager: 2,
-  delete: 3,
-} as const;
-
 export const CONFIRM_ACTION = -1;
 
 export const STORAGE_AMOUNTS = [
@@ -1299,17 +1280,30 @@ export const STORAGE_AMOUNTS = [
   { value: 2147483647, label: "all" },
 ] as const;
 
-/** First `aom.action` index used by a building's storage buttons. */
-function actionBase(type: BuildingType): number {
-  return type.jobs.length + (type.population ? 2 : 0) + 1;
+/** `aom.action` index of a job's Hire button. */
+export function hireAction(type: BuildingType, index: number): number {
+  return index + 1;
 }
 
-/** `aom.action` index of the population Add/Remove villager buttons. */
+/** `aom.action` index of a job's Fire button (only when `type.fire`). */
+export function fireAction(type: BuildingType, index: number): number {
+  return type.jobs.length + index + 1;
+}
+
+/** `aom.action` index of the population Add/Remove buttons. */
 export function populationAction(
   type: BuildingType,
   kind: "add" | "remove",
 ): number {
-  return type.jobs.length + (kind === "add" ? 1 : 2);
+  const base = type.jobs.length + (type.fire ? type.jobs.length : 0);
+  return base + (kind === "add" ? 1 : 2);
+}
+
+/** First `aom.action` index used by a building's storage buttons. */
+function actionBase(type: BuildingType): number {
+  const fire = type.fire ? type.jobs.length : 0;
+  const population = type.population ? (type.removeVillagers ? 2 : 1) : 0;
+  return type.jobs.length + fire + population + 1;
 }
 
 /** `aom.action` index for a deposit/withdraw button. */

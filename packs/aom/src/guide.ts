@@ -15,15 +15,15 @@ export const GUIDE: readonly GuidePage[] = [
       "1. Craft a Townhall Plan (a plank + sapling) and place it on a sign.",
       "2. Write your town's name on the sign's first line.",
       "3. Right-click the sign to found the town and join it.",
-      "The townhall menu opens; build more with plans or /trigger aom.menu.",
-      "4. Stand at a building and run /trigger aom.menu to staff jobs.",
+      "The townhall menu opens; build more by crafting and placing plans.",
+      "4. Right-click a building's sign to open its menu and staff jobs.",
       "Staffed jobs produce resources and unlock recipes for the whole town.",
     ],
   },
   {
     heading: "Commands",
     lines: [
-      "/trigger aom.menu - build on a sign, or manage a building.",
+      "Right-click a building's sign to open its menu.",
       "/trigger aom.guide - this guide.",
       "/trigger aom.town_info - your town's page.",
       "Founding a town needs no command: place a Townhall Plan.",
@@ -36,7 +36,7 @@ export const GUIDE: readonly GuidePage[] = [
       "so the plank's wood decides the sign you get (oak planks -> oak sign).",
       "Townhouse plans are two planks of the same wood.",
       "Place the sign where you want the building, then right-click it.",
-      "Every plan is listed in the build menu with its ingredients in mind.",
+      "Plans are the only way to build a new building.",
     ],
   },
   {
@@ -53,7 +53,7 @@ export const GUIDE: readonly GuidePage[] = [
   {
     heading: "Jobs",
     lines: [
-      "Jobs are permanent: a hired worker can never be fired.",
+      "Jobs are permanent, except Custom's Hired help, which can be fired.",
       "Unlock jobs stop at the number they need (1, or 2/5 for jewellers).",
       "Generation and storage jobs are unlimited.",
       "The town pays one villager per worker hired.",
@@ -104,7 +104,7 @@ export const GUIDE: readonly GuidePage[] = [
   {
     heading: "Troubleshooting",
     lines: [
-      "Nothing happens - stand close and aim straight at a sign.",
+      "Nothing happens - stand close and right-click the building's sign.",
       "No unemployed villagers - build townhouses; members are not workers.",
       "Cannot hire - the resource must be discovered first.",
       "Nothing generates - hire collectors and bankers, and load the chunk.",

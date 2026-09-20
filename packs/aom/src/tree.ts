@@ -1,8 +1,8 @@
 import { ITEM_IDS } from "../../../mcgen/src/models/items.generated.ts";
 
 // The AOM advancement page: one node per building (plus a root and one node
-// per category). The shape mirrors the tech-tree preview in packs/techdemo,
-// with the buildings AOM does not implement (the Nether Outpost) removed.
+// per category). The buildings AOM does not implement (the Nether Outpost)
+// are omitted.
 
 export type TreeNodeKind = "root" | "category" | "building";
 

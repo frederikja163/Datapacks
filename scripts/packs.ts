@@ -7,8 +7,6 @@ import { build as buildImsp } from "../packs/imsp/src/index.ts";
 import { DOCS as imspDocs } from "../packs/imsp/src/docs.ts";
 import { build as buildSoulbound } from "../packs/soulbound/src/index.ts";
 import { DOCS as soulboundDocs } from "../packs/soulbound/src/docs.ts";
-import { build as buildTechdemo } from "../packs/techdemo/src/index.ts";
-import { DOCS as techdemoDocs } from "../packs/techdemo/src/docs.ts";
 import { build as buildUnbreakable } from "../packs/unbreakable/src/index.ts";
 import { DOCS as unbreakableDocs } from "../packs/unbreakable/src/docs.ts";
 
@@ -23,6 +21,5 @@ export const packs: PackEntry[] = [
   { name: "dps", build: buildDps, docs: dpsDocs },
   { name: "imsp", build: buildImsp, docs: imspDocs },
   { name: "soulbound", build: buildSoulbound, docs: soulboundDocs },
-  { name: "techdemo", build: buildTechdemo, docs: techdemoDocs },
   { name: "unbreakable", build: buildUnbreakable, docs: unbreakableDocs },
 ];

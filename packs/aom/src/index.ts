@@ -349,6 +349,15 @@ export function build(): Datapack {
   }
   const computeActive = d.defineFunction("jobs/unlock/active", activeLines);
 
+  // One hidden advancement per recipe group. Granting it hands out the whole
+  // group in a single command; the town's buildings decide when it is granted.
+  for (const group of GROUPS) {
+    d.advancement(`unlock/${group.key}`, {
+      criteria: { always: { trigger: "minecraft:impossible" } },
+      rewards: { recipes: [...group.recipes] },
+    });
+  }
+
   const grantSync = d.defineFunction(
     "jobs/grant/sync",
     GROUPS.flatMap((group) => {
@@ -359,15 +368,13 @@ export function build(): Datapack {
         );
       }
       lines.push(
-        ...group.recipes.map(
-          (recipe) =>
-            `$execute if score #ok aom.tmp matches 1 unless data storage aom:data towns.$(town).granted.${group.key} as @a[tag=aom_member_$(town)] run recipe give @s ${recipe}`,
-        ),
+        `$execute if score #ok aom.tmp matches 1 unless data storage aom:data towns.$(town).granted.${group.key} as @a[tag=aom_member_$(town)] run advancement grant @s only aom:unlock/${group.key}`,
         `$execute if score #ok aom.tmp matches 1 run data modify storage aom:data towns.$(town).granted.${group.key} set value 1b`,
         ...group.recipes.map(
           (recipe) =>
             `$execute if score #ok aom.tmp matches 0 if data storage aom:data towns.$(town).granted.${group.key} as @a[tag=aom_member_$(town)] run recipe take @s ${recipe}`,
         ),
+        `$execute if score #ok aom.tmp matches 0 if data storage aom:data towns.$(town).granted.${group.key} as @a[tag=aom_member_$(town)] run advancement revoke @s only aom:unlock/${group.key}`,
         `$execute if score #ok aom.tmp matches 0 run data remove storage aom:data towns.$(town).granted.${group.key}`,
       );
       return lines;
@@ -384,10 +391,7 @@ export function build(): Datapack {
         );
       }
       lines.push(
-        ...group.recipes.map(
-          (recipe) =>
-            `$execute if score #ok aom.tmp matches 1 run recipe give @s ${recipe}`,
-        ),
+        `$execute if score #ok aom.tmp matches 1 run advancement grant @s only aom:unlock/${group.key}`,
       );
       return lines;
     }),
@@ -395,9 +399,10 @@ export function build(): Datapack {
 
   const clearUnlocks = d.defineFunction(
     "player/clear_unlocks",
-    TOWN_RECIPES.flatMap((group) =>
-      group.recipes.map((recipe) => `recipe take @s ${recipe}`),
-    ),
+    TOWN_RECIPES.flatMap((group) => [
+      ...group.recipes.map((recipe) => `recipe take @s ${recipe}`),
+      `advancement revoke @s only aom:unlock/${group.key}`,
+    ]),
   );
 
   const starter = d.defineFunction("player/starter", [
@@ -406,8 +411,8 @@ export function build(): Datapack {
   ]);
   d.defineFunction(
     "player/starter/grant",
-    STARTER_RECIPES.flatMap((group) =>
-      group.recipes.map((recipe) => `recipe give @s ${recipe}`),
+    STARTER_RECIPES.map(
+      (group) => `advancement grant @s only aom:unlock/${group.key}`,
     ),
   );
 

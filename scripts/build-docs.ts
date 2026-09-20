@@ -5,8 +5,16 @@
 // Pages workflow publishes. Run: bun run docs
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { latestVersion } from "../mcgen/src/index.ts";
 import { derivedSections as aomSections } from "./docs/aom.ts";
@@ -26,6 +34,13 @@ import {
   type NavPack,
 } from "./docs/render.ts";
 import { packs, type PackEntry } from "./packs.ts";
+
+// `Bun.Archive` (the zip writer used for the all-packs download) is not part
+// of the Node typings this project compiles against.
+declare const Bun: {
+  Archive: new (files: Record<string, Uint8Array>) => unknown;
+  write(path: string, data: unknown): Promise<number>;
+};
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(root, "site");
@@ -84,6 +99,47 @@ function releaseBadge(pack: PackEntry): string {
 
 function releaseLink(pack: PackEntry): string {
   return `${REPO}/releases?q=${encodeURIComponent(pack.name)}`;
+}
+
+interface Download {
+  readonly href: string;
+  readonly size: string;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * Builds every released pack and zips them into `datapacks.zip`. The zip holds
+ * one top-level folder per pack, so extracting it into a world's `datapacks/`
+ * directory installs them all at once.
+ */
+function buildDownload(): Promise<Download | null> {
+  const released = packs.filter((pack) => !pack.docs.preview);
+  if (!released.length) return Promise.resolve(null);
+
+  const files: Record<string, Uint8Array> = {};
+  for (const pack of released) {
+    const datapack = pack.build();
+    const dir = join(root, "packs", pack.name, "build", datapack.namespace);
+    datapack.writeTo(dir);
+    for (const entry of readdirSync(dir, { recursive: true, encoding: "utf8" })) {
+      const full = join(dir, entry);
+      if (!statSync(full).isFile()) continue;
+      const name = entry.split(sep).join("/");
+      files[`${pack.name}/${name}`] = readFileSync(full);
+    }
+  }
+
+  const href = "datapacks.zip";
+  return Bun.write(join(outDir, href), new Bun.Archive(files)).then((size) => ({
+    href,
+    size: formatBytes(size),
+  }));
 }
 
 function derivedFor(pack: string): string {
@@ -166,7 +222,11 @@ function versioningSection(): string {
   );
 }
 
-function indexBody(nav: readonly NavPack[], generatedAt: string): string {
+function indexBody(
+  nav: readonly NavPack[],
+  generatedAt: string,
+  download: Download | null,
+): string {
   const cards = nav
     .map((entry) => {
       const pack = packs.find((candidate) => candidate.name === entry.name)!;
@@ -184,18 +244,25 @@ function indexBody(nav: readonly NavPack[], generatedAt: string): string {
       </article>`;
     })
     .join("");
+  const downloadLink = download
+    ? `<a class="cta" href="${esc(download.href)}">Download all packs <small>(.zip · ${esc(
+        download.size,
+      )})</small></a>
+  <p class="muted">Extract the zip into your world's <code>datapacks/</code> folder, or grab a single pack from its releases page.</p>`
+    : "";
   return `<div class="hero">
   <h1>Datapacks</h1>
   <p class="lead">Minecraft Java datapacks for Minecraft ${esc(
     latestVersion().id,
   )}, authored in TypeScript. Every page here is generated from the same sources that build the datapacks.</p>
+  ${downloadLink}
 </div>
 ${section("packs", "Datapacks", `<div class="grid">${cards}</div>`)}
 ${versioningSection()}
 <p class="muted">Generated on ${esc(generatedAt)}.</p>`;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const version = latestVersion();
   const generatedAt = `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC`;
   const released = packs.filter((pack) => !pack.docs.preview);
@@ -211,6 +278,8 @@ function main(): void {
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "style.css"), PAGE_CSS);
 
+  const download = await buildDownload();
+
   const common = {
     nav,
     mcVersion: version.id,
@@ -224,7 +293,7 @@ function main(): void {
       title: "Datapacks - documentation",
       description: "Documentation for the datapacks in this repository.",
       current: "index",
-      body: indexBody(nav, generatedAt),
+      body: indexBody(nav, generatedAt, download),
       ...common,
     }),
   );
@@ -245,4 +314,4 @@ function main(): void {
   console.log(`Wrote ${outDir} (${ordered.length + 1} pages)`);
 }
 
-main();
+await main();

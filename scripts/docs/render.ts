@@ -183,6 +183,9 @@ section { margin-top: 38px; }
 .sub { color: var(--muted); margin: 0 0 14px; }
 .lead { font-size: 17px; margin: 8px 0 0; max-width: 72ch; }
 .hero { padding: 6px 0 2px; }
+.cta { display: inline-flex; align-items: baseline; gap: 8px; margin-top: 14px; background: var(--accent); color: #0b1120; font-weight: 600; padding: 9px 16px; border-radius: 10px; }
+.cta:hover { text-decoration: none; filter: brightness(1.08); }
+.cta small { font-weight: 400; opacity: .7; }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
 .badge.hot { background: #1d4ed8; border-color: transparent; color: #fff; }

@@ -29,7 +29,7 @@ Generated output lives in `packs/<name>/build/<name>/` and is gitignored. Never 
 - **Registry ids are typed.** If you need a new item/block/effect/sound/entity id, add it to `mcgen/src/models/index.ts` first. This is the "internal model" that gets updated for new Minecraft versions.
 - **One pack per folder** under `packs/`, registered in `scripts/packs.ts`. The pack namespace must match the folder name.
 - **Deploy when it is set up.** If `deploy.config.json` exists, run `bun run deploy` after a successful build so your changes reach the configured test world (the script rebuilds and copies; it does not run `/reload`). Deploy before telling the user a change is ready to try.
-- **Versions come from `VERSION` files** (`packs/<name>/VERSION`) containing a `MAJOR.MINOR` base. The release workflow appends the existing tag count as the patch; never rename or hand-edit release tags. Bump the base file to start a new minor/major line.
+- **Versions come from `VERSION` files** (`packs/<name>/VERSION`) containing a `MAJOR.MINOR` base. The release workflow appends the existing tag count as the patch; never rename or hand-edit release tags. Pick the base line with the [versioning policy](#versioning-policy).
 - `mcgen/` is shared: changes there rebuild and can affect every pack, so run `bun run typecheck` and `bun run build` after editing it.
 
 ## Verifying changes
@@ -53,3 +53,17 @@ Generated output lives in `packs/<name>/build/<name>/` and is gitignored. Never 
 2. Update `mcgen/src/models/index.ts` for registry changes.
 3. `bun run typecheck` — compiler errors point at every call site that needs updating.
 4. Rebuild all packs and review the diff.
+
+## Versioning policy
+
+`VERSION` holds the `MAJOR.MINOR` base and the release workflow adds the patch automatically. Pick the line by the size of the change:
+
+| Change | Example | How to bump |
+| --- | --- | --- |
+| Small fix, balance tweak or wording | `1.1.0` → `1.1.1` | **Patch** — automatic, leave `VERSION` alone |
+| New, backwards-compatible feature (skill, powerup, command) | `1.1` → `1.2` | **Minor** — edit `VERSION` to the new `MAJOR.MINOR` |
+| Breaking change that needs an uninstall before upgrading | `1.1` → `2.0` | **Major** — edit `VERSION` and say so in the release notes |
+
+- A **patch** is any change that only fixes or tunes existing behaviour. Do not edit `VERSION`; the workflow counts the existing `<pack>-<base>.*` tags.
+- A **minor** adds content. It is installed over the previous version in place; leftover objectives or storage are tolerated.
+- A **major** changes state or formats incompatibly. Players must run the pack's uninstall function and remove the old datapack before installing the new one. Because the base is `MAJOR.MINOR`, this means editing `VERSION` to `2.0`.

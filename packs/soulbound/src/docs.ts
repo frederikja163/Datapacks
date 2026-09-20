@@ -45,12 +45,7 @@ export const DOCS: PackDocs = {
     {
       command: "function soulbound:debug",
       description:
-        "Prints your id, death counters, pending state, snapshot position and how many items are snapshotted.",
-    },
-    {
-      command: "function soulbound:debug",
-      description:
-        "Also lists each inventory slot and whether it matches the Soulbound enchantment.",
+        "Prints your id, death counters, pending state, snapshot position and how many items are snapshotted, then lists each inventory slot and whether it matches the Soulbound enchantment.",
     },
     {
       command: "function soulbound:uninstall",

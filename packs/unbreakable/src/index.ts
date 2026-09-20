@@ -27,7 +27,7 @@ export function build(): Datapack {
       "minecraft:unbreaking",
       "minecraft:mending",
       "minecraft:binding_curse",
-			"minecraft:infinity",
+      "minecraft:infinity",
     ],
     supported_items: "#minecraft:enchantable/durability",
     weight: 2,
@@ -61,6 +61,7 @@ export function build(): Datapack {
   // by the old item-component version.
   defineUninstall(d, {
     objectives: [
+      "unbreakable",
       "unbreakable.toggle",
       "unbreakable_toggle",
       "unbreakable_setup",

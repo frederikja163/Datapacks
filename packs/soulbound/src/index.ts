@@ -12,18 +12,19 @@ import {
 
 const ENCHANTMENT = "soulbound:soulbound";
 
-// Player inventory slots: the `item`/`if items` slot name and the matching
-// NBT `Slot` number inside the player's `Inventory` list.
-const SLOTS: ReadonlyArray<{ item: string; slot: number }> = [
+// Player inventory slots: the `item`/`if items` slot name and the NBT path
+// holding that stack. Since 25w03a (1.21.5) armor and offhand live in the
+// `equipment` compound, not in the player's `Inventory` list.
+const SLOTS: ReadonlyArray<{ item: string; nbt: string }> = [
   ...Array.from({ length: 36 }, (_, i) => ({
     item: `container.${i}`,
-    slot: i,
+    nbt: `Inventory[{Slot:${i}b}]`,
   })),
-  { item: "armor.feet", slot: 100 },
-  { item: "armor.legs", slot: 101 },
-  { item: "armor.chest", slot: 102 },
-  { item: "armor.head", slot: 103 },
-  { item: "weapon.offhand", slot: -106 },
+  { item: "armor.feet", nbt: "equipment.feet" },
+  { item: "armor.legs", nbt: "equipment.legs" },
+  { item: "armor.chest", nbt: "equipment.chest" },
+  { item: "armor.head", nbt: "equipment.head" },
+  { item: "weapon.offhand", nbt: "equipment.offhand" },
 ];
 
 // References the enchantment through our own tag so every predicate still
@@ -94,8 +95,8 @@ export function build(): Datapack {
     "$execute unless data storage soulbound:data players[{ID:$(id)}] run data modify storage soulbound:data players append {ID:$(id)}",
     '$data modify storage soulbound:data players[{ID:$(id)}].items set value []',
     ...SLOTS.map(
-      ({ item, slot }) =>
-        `$execute if items entity @s ${item} ${HAS_SOULBOUND} run data modify storage soulbound:data players[{ID:$(id)}].items append from entity @s Inventory[{Slot:${slot}b}]`,
+      ({ item, nbt }) =>
+        `$execute if items entity @s ${item} ${HAS_SOULBOUND} run data modify storage soulbound:data players[{ID:$(id)}].items append from entity @s ${nbt}`,
     ),
     '$execute store result storage soulbound:data players[{ID:$(id)}].x double 1 run data get entity @s Pos[0]',
     '$execute store result storage soulbound:data players[{ID:$(id)}].y double 1 run data get entity @s Pos[1]',

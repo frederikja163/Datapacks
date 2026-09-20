@@ -86,6 +86,18 @@ Releases are automatic and patch-incrementing. The workflow counts the existing 
 
 To start a new minor or major line, edit the `VERSION` file (e.g. to `1.1`); the patch counter starts at `.0` again.
 
+Pick the line by the size of the change:
+
+| Change | Bump | How |
+| --- | --- | --- |
+| Small fix, balance tweak or wording | **Patch** (`1.1.0` → `1.1.1`) | Automatic — leave `VERSION` alone |
+| New, backwards-compatible feature (skill, powerup, command) | **Minor** (`1.1` → `1.2`) | Edit `VERSION` to the new `MAJOR.MINOR` |
+| Breaking change that needs an uninstall before upgrading | **Major** (`1.1` → `2.0`) | Edit `VERSION` and call it out in the release notes |
+
+- A **patch** only fixes or tunes existing behaviour, so the release workflow bumps it for you.
+- A **minor** adds content. It is installed over the previous version in place; leftover objectives or storage are tolerated.
+- A **major** changes state or formats incompatibly. Players must run the pack's uninstall function and remove the old datapack before installing the new one, so mention it in the release notes.
+
 ## Releases
 
 `.github/workflows/release.yml` runs on pushes to `main`. It detects which packs changed and publishes a GitHub release per pack. Only packs under `packs/*` that have a `VERSION` file are eligible.

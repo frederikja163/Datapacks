@@ -133,7 +133,9 @@ for (const radius of [1, 2, 3]) {
 }
 
 // Breedable animals eligible for Twins. Each type gets its own `bred_animals`
-// advancement so the newborn can be identified and cloned.
+// advancement so the newborn can be identified and cloned. Egg-layers (turtle,
+// sniffer) and frogs are omitted: the trigger's `child` entity never exists for
+// them, so the advancement could never fire.
 const BREEDABLE_ANIMALS = [
   "minecraft:armadillo",
   "minecraft:axolotl",
@@ -144,7 +146,6 @@ const BREEDABLE_ANIMALS = [
   "minecraft:cow",
   "minecraft:donkey",
   "minecraft:fox",
-  "minecraft:frog",
   "minecraft:goat",
   "minecraft:hoglin",
   "minecraft:horse",
@@ -155,15 +156,14 @@ const BREEDABLE_ANIMALS = [
   "minecraft:pig",
   "minecraft:rabbit",
   "minecraft:sheep",
-  "minecraft:sniffer",
   "minecraft:strider",
-  "minecraft:turtle",
   "minecraft:wolf",
 ] as const;
 
 // Drinkable potions whose positive effect Extended Potions lengthens. The
 // duration is the vanilla base in ticks and the amplifier matches the potion
-// strength; `strong_*` potions are level II.
+// strength; `strong_*` potions are level II. Durations are converted to
+// seconds before `/effect give`, which takes seconds.
 const POSITIVE_POTIONS = [
   { potion: "minecraft:swiftness", effect: "minecraft:speed", duration: 3600, amplifier: 0 },
   { potion: "minecraft:long_swiftness", effect: "minecraft:speed", duration: 9600, amplifier: 0 },
@@ -282,6 +282,8 @@ export function build(): Datapack {
       "$scoreboard players operation @s $(skill)_xp += @s $(name)",
       "$scoreboard players set @s $(name) 0",
       "",
+      "# Seed the requirement so the first xp grant has something to divide by.",
+      "$execute unless score @s $(skill)_req matches 1.. run scoreboard players set @s $(skill)_req 7",
       "$function dps:utility/calc_percentage {skill: $(skill)}",
     ]),
     giveXp: d.defineFunction("utility/give_xp/", [
@@ -326,6 +328,11 @@ export function build(): Datapack {
   };
 
   const levelup: FunctionRef = d.defineFunction("utility/levelup/", [
+    "# Seed xp and the level-0 requirement (2 * 0 + 7) for players who have not",
+    "# gained xp yet. Without it both scores are absent, so the comparison below",
+    "# is skipped and every skill levels up to 1 the moment a player joins.",
+    "$scoreboard players add @s $(skill)_xp 0",
+    "$execute unless score @s $(skill)_req matches 1.. run scoreboard players set @s $(skill)_req 7",
     "# Has player leveled up.",
     "$execute if score @s $(skill)_xp < @s $(skill)_req run return fail",
     "",
@@ -752,14 +759,24 @@ export function build(): Datapack {
   const harvestRing2 = harvestRing(2);
   const harvestRing3 = harvestRing(3);
   const harvest = {
-    init: d.defineFunction("powerup/harvest/init", [
-      '$function dps:utility/skill_init {skill: "$(skill)", display: "$(display)"}',
-    ]),
     use: d.defineFunction("skill/farming/harvest", [
       "advancement revoke @s only dps:farming_harvest",
       `function ${harvestRing1.name}`,
       `execute if score @s dps_farming_level matches 200.. run function ${harvestRing2.name}`,
       `execute if score @s dps_farming_level matches 400.. run function ${harvestRing3.name}`,
+    ]),
+    levelup: d.defineFunction("powerup/harvest/levelup", [
+      "# radius = 1, +1 at level 200 and again at level 400",
+      "scoreboard players set __power__ dps_tmp 1",
+      "execute if score @s dps_farming_level matches 200.. run scoreboard players add __power__ dps_tmp 1",
+      "execute if score @s dps_farming_level matches 400.. run scoreboard players add __power__ dps_tmp 1",
+      `tellraw @s ${snbt([
+        "    ",
+        text("🌾 Harvest Moon", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        text("Harvest radius ", { color: "gold" }),
+        score("__power__", "dps_tmp", { color: "aqua" }),
+      ])}`,
     ]),
   };
 
@@ -818,6 +835,22 @@ export function build(): Datapack {
     second: d.defineFunction("powerup/repair/second", [
       "$execute as @a[scores={$(skill)_cooldown=1..}] run scoreboard players remove @s $(skill)_cooldown 1",
     ]),
+    levelup: d.defineFunction("powerup/repair/levelup", [
+      "# pct = min(25, 5 + level / 50)",
+      "scoreboard players operation __power__ dps_tmp = @s dps_enchanting_level",
+      "scoreboard players operation __power__ dps_tmp /= 50 dps_globals",
+      "scoreboard players add __power__ dps_tmp 5",
+      "execute if score __power__ dps_tmp matches 25.. run scoreboard players set __power__ dps_tmp 25",
+      `tellraw @s ${snbt([
+        "    ",
+        text("✨ Arcane Repair", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        text("Restores ", { color: "gold" }),
+        score("__power__", "dps_tmp", { color: "aqua" }),
+        text("%", { color: "aqua" }),
+        text(" of max durability", { color: "gold" }),
+      ])}`,
+    ]),
   };
 
   // --- Angler's Luck (fishing) --------------------------------------------
@@ -857,6 +890,22 @@ export function build(): Datapack {
         score("__angler_threshold__", "dps_tmp", { color: "aqua" }),
       ])}`,
     ]),
+    levelup: d.defineFunction("powerup/angler/levelup", [
+      "# threshold = max(1, 10 - level / 50)",
+      "scoreboard players operation __angler_lvl__ dps_tmp = @s dps_fishing_level",
+      "scoreboard players operation __angler_lvl__ dps_tmp /= 50 dps_globals",
+      "scoreboard players set __power__ dps_tmp 10",
+      "scoreboard players operation __power__ dps_tmp -= __angler_lvl__ dps_tmp",
+      "execute if score __power__ dps_tmp matches ..0 run scoreboard players set __power__ dps_tmp 1",
+      `tellraw @s ${snbt([
+        "    ",
+        text("🐟 Angler's Luck", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        text("Treasure every ", { color: "gold" }),
+        score("__power__", "dps_tmp", { color: "aqua" }),
+        text(" catches", { color: "gold" }),
+      ])}`,
+    ]),
   };
 
   // --- Extended Potions (alchemy) -----------------------------------------
@@ -874,6 +923,8 @@ export function build(): Datapack {
         "scoreboard players operation __alchemy__ dps_tmp *= @s dps_alchemy_level",
         "scoreboard players operation __alchemy__ dps_tmp /= 400 dps_globals",
         `scoreboard players add __alchemy__ dps_tmp ${potion.duration}`,
+        "# `/effect give` wants seconds; the table above is in ticks.",
+        "scoreboard players operation __alchemy__ dps_tmp /= 20 dps_globals",
         "execute store result storage dps:powerup alchemy.duration int 1 run scoreboard players get __alchemy__ dps_tmp",
         `data modify storage dps:powerup alchemy.effect set value "${potion.effect}"`,
         `data modify storage dps:powerup alchemy.amplifier set value ${potion.amplifier}`,
@@ -881,6 +932,20 @@ export function build(): Datapack {
       ]),
     };
   });
+  const alchemyLevelup = d.defineFunction("powerup/effect_extend/levelup", [
+    "# bonus% = level / 4 (level / 400 of the base duration)",
+    "scoreboard players operation __power__ dps_tmp = @s dps_alchemy_level",
+    "scoreboard players operation __power__ dps_tmp /= 4 dps_globals",
+    `tellraw @s ${snbt([
+      "    ",
+      text("⚗ Extended Potions", { color: "gold" }),
+      text(" • ", { color: "dark_gray" }),
+      text("+", { color: "gold" }),
+      score("__power__", "dps_tmp", { color: "aqua" }),
+      text("%", { color: "aqua" }),
+      text(" potion duration", { color: "gold" }),
+    ])}`,
+  ]);
 
   // --- Arrow Recovery (archery) -------------------------------------------
   const arrowRecovery = {
@@ -893,6 +958,20 @@ export function build(): Datapack {
       "execute store result score __archery_roll__ dps_tmp run random value 1..100",
       "execute if score __archery_roll__ dps_tmp <= __archery__ dps_tmp run give @s minecraft:arrow 1",
       "execute if score __archery_roll__ dps_tmp <= __archery__ dps_tmp run playsound minecraft:entity.item.pickup player @s ~ ~ ~ 0.3 1.6",
+    ]),
+    levelup: d.defineFunction("powerup/arrow_recovery/levelup", [
+      "# chance = min(75, level / 7)",
+      "scoreboard players operation __power__ dps_tmp = @s dps_archery_level",
+      "scoreboard players operation __power__ dps_tmp /= 7 dps_globals",
+      "execute if score __power__ dps_tmp matches 75.. run scoreboard players set __power__ dps_tmp 75",
+      `tellraw @s ${snbt([
+        "    ",
+        text("🏹 Arrow Recovery", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        score("__power__", "dps_tmp", { color: "aqua" }),
+        text("%", { color: "aqua" }),
+        text(" arrow return chance", { color: "gold" }),
+      ])}`,
     ]),
   };
 
@@ -914,6 +993,20 @@ export function build(): Datapack {
       ]),
     };
   });
+  const twinsLevelup = d.defineFunction("powerup/twins/levelup", [
+    "# chance = min(50, level / 10)",
+    "scoreboard players operation __power__ dps_tmp = @s dps_taming_level",
+    "scoreboard players operation __power__ dps_tmp /= 10 dps_globals",
+    "execute if score __power__ dps_tmp matches 50.. run scoreboard players set __power__ dps_tmp 50",
+    `tellraw @s ${snbt([
+      "    ",
+      text("🐾 Twins", { color: "gold" }),
+      text(" • ", { color: "dark_gray" }),
+      score("__power__", "dps_tmp", { color: "aqua" }),
+      text("%", { color: "aqua" }),
+      text(" twin chance", { color: "gold" }),
+    ])}`,
+  ]);
 
   // --- Charged Fall Guard (acrobatics) ------------------------------------
   const fallGuardSet = d.defineFunction("powerup/fall_guard/set", [
@@ -933,14 +1026,49 @@ export function build(): Datapack {
       "$scoreboard players operation @s dps_acrobatics_charges = @s dps_acrobatics_charges",
       "$scoreboard players operation @s dps_acrobatics_cooldown = @s dps_acrobatics_cooldown",
       "",
+      "$scoreboard players operation @s dps_tmp = @s dps_acrobatics_charges_max",
       "$scoreboard players operation @s dps_acrobatics_charges_max = @s dps_acrobatics_level",
       "$scoreboard players operation @s dps_acrobatics_charges_max /= 100 dps_globals",
       "$scoreboard players add @s dps_acrobatics_charges_max 1",
+      `$execute unless score @s dps_tmp = @s dps_acrobatics_charges_max run tellraw @s ${snbt([
+        "    ",
+        text("Charged Fall Guard", { color: "gold" }),
+        " ",
+        score("@s", "dps_tmp", { color: "aqua" }),
+        text("⚡", { color: "yellow" }),
+        text(" → ", { color: "white" }),
+        score("@s", "dps_acrobatics_charges_max", { color: "aqua" }),
+        text("⚡", { color: "yellow" }),
+      ])}`,
       "",
+      "$scoreboard players operation @s dps_tmp = @s dps_acrobatics_cooldown_max",
       "$scoreboard players operation @s dps_acrobatics_cooldown_max = @s dps_acrobatics_level",
       "$scoreboard players operation @s dps_acrobatics_cooldown_max /= 2 dps_globals",
       "$scoreboard players remove @s dps_acrobatics_cooldown_max 300",
       "$scoreboard players operation @s dps_acrobatics_cooldown_max *= -1 dps_globals",
+      `$execute unless score @s dps_tmp = @s dps_acrobatics_cooldown_max run tellraw @s ${snbt([
+        "    ",
+        text("Charged Fall Guard", { color: "gold" }),
+        text(" ⏳", { color: "red" }),
+        score("@s", "dps_tmp", { color: "aqua" }),
+        text("s", { color: "aqua" }),
+        text(" → ", { color: "white" }),
+        text(" ⏳", { color: "red" }),
+        score("@s", "dps_acrobatics_cooldown_max", { color: "aqua" }),
+      ])}`,
+      "",
+      "# reduction hearts = 2 + level / 100",
+      "scoreboard players operation __power__ dps_tmp = @s dps_acrobatics_level",
+      "scoreboard players operation __power__ dps_tmp /= 100 dps_globals",
+      "scoreboard players add __power__ dps_tmp 2",
+      `$tellraw @s ${snbt([
+        "    ",
+        text("Charged Fall Guard", { color: "gold" }),
+        text(" • ", { color: "dark_gray" }),
+        text("Absorbs ", { color: "gold" }),
+        score("__power__", "dps_tmp", { color: "aqua" }),
+        text(" hearts per fall", { color: "gold" }),
+      ])}`,
     ]),
     apply: d.defineFunction("powerup/fall_guard/apply", [
       "# Not leveled yet: nothing to guard with.",
@@ -955,7 +1083,7 @@ export function build(): Datapack {
       "# Already guarding this fall.",
       "execute if score @s dps_acrobatics_guard matches 1.. run return fail",
       "# Needs a charge.",
-      "execute if score @s dps_acrobatics_charges matches 0..0 run return fail",
+      "execute if score @s dps_acrobatics_charges matches ..0 run return fail",
       "scoreboard players remove @s dps_acrobatics_charges 1",
       "scoreboard players set @s dps_acrobatics_guard 1",
       "",
@@ -1077,6 +1205,20 @@ export function build(): Datapack {
     return utility.nop;
   };
 
+  // Function run on level up to announce what the skill's powerup now does.
+  const levelupSuccess: Record<Powerup, string> = {
+    effect: "dps:powerup/effect/levelup",
+    tree_cutter: "dps:powerup/tree_cutter/levelup",
+    fall_guard: fallGuard.levelup.name,
+    harvest: harvest.levelup.name,
+    repair: repair.levelup.name,
+    effect_extend: alchemyLevelup.name,
+    arrow_recovery: arrowRecovery.levelup.name,
+    twins: twinsLevelup.name,
+    angler: angler.levelup.name,
+    none: "dps:utility/nop",
+  };
+
   for (const skill of SKILLS) {
     const scoreboard = sb(skill.name);
 
@@ -1123,14 +1265,7 @@ export function build(): Datapack {
       `function dps:skill/${skill.name}/actions {function: "dps:utility/give_xp/"}`,
       "",
     );
-    const success =
-      skill.powerup === "effect"
-        ? "dps:powerup/effect/levelup"
-        : skill.powerup === "tree_cutter"
-          ? "dps:powerup/tree_cutter/levelup"
-          : skill.powerup === "fall_guard"
-            ? "dps:powerup/fall_guard/levelup"
-            : "dps:utility/nop";
+    const success = levelupSuccess[skill.powerup];
     tickLines.push(
       `execute as @a run function ${levelup.name} {"skill": "${scoreboard}", success: "${success}"}`,
       "",
@@ -1198,16 +1333,19 @@ export function build(): Datapack {
     "scoreboard players set -1 dps_globals -1",
     "scoreboard players set 1 dps_globals 1",
     "scoreboard players set 2 dps_globals 2",
+    "scoreboard players set 4 dps_globals 4",
     "scoreboard players set 5 dps_globals 5",
     "scoreboard players set 7 dps_globals 7",
     "scoreboard players set 9 dps_globals 9",
     "scoreboard players set 10 dps_globals 10",
+    "scoreboard players set 20 dps_globals 20",
     "scoreboard players set 38 dps_globals 38",
     "scoreboard players set 50 dps_globals 50",
     "scoreboard players set 100 dps_globals 100",
     "scoreboard players set 158 dps_globals 158",
     "scoreboard players set 300 dps_globals 300",
     "scoreboard players set 400 dps_globals 400",
+    "scoreboard players set 1000 dps_globals 1000",
     "",
     "scoreboard objectives add dps_total_level dummy",
     "",
@@ -1270,6 +1408,7 @@ export function build(): Datapack {
     "#minecraft:dark_oak_logs",
     "#minecraft:mangrove_logs",
     "#minecraft:cherry_logs",
+    "#minecraft:pale_oak_logs",
   ]);
 
   d.itemTag("combat_tool", ["#minecraft:swords"]);
@@ -1323,7 +1462,6 @@ export function build(): Datapack {
 
   d.itemTag("farming_tool", ["#minecraft:hoes"]);
   d.blockTag("anvils", [...ANVIL_BLOCKS]);
-  d.blockTag("crops", HARVEST_CROPS.map((crop) => crop.block));
 
   d.predicate("baby", {
     type: "minecraft:entity_properties",

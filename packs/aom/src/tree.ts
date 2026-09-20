@@ -1,7 +1,10 @@
 import { ITEM_IDS } from "../../../mcgen/src/models/items.generated.ts";
 
 // The AOM advancement page: one node per building (plus a root and one node
-// per category). The buildings AOM does not implement (the Nether Outpost)
+// per category). Every building hangs directly off its category so the page
+// always shows all of them, greyed until the town has made that building.
+// Build dependencies are enforced by each building's `requires`, not by the
+// advancement tree. The buildings AOM does not implement (the Nether Outpost)
 // are omitted.
 
 export type TreeNodeKind = "root" | "category" | "building";
@@ -32,40 +35,40 @@ export const TREE: readonly TreeNode[] = [
   { id: "townhall", parent: "cat_civic", kind: "building", icon: "minecraft:bell", frame: "task" },
   { id: "townhouse", parent: "cat_civic", kind: "building", icon: "minecraft:oak_door", frame: "task" },
   { id: "lumbermill", parent: "cat_extraction", kind: "building", icon: "minecraft:oak_log", frame: "task" },
-  { id: "mine", parent: "lumbermill", kind: "building", icon: "minecraft:wooden_pickaxe", frame: "task" },
+  { id: "mine", parent: "cat_extraction", kind: "building", icon: "minecraft:wooden_pickaxe", frame: "task" },
   { id: "quarry", parent: "cat_extraction", kind: "building", icon: "minecraft:gravel", frame: "task" },
-  { id: "docks", parent: "lumbermill", kind: "building", icon: "minecraft:oak_boat", frame: "task" },
+  { id: "docks", parent: "cat_extraction", kind: "building", icon: "minecraft:oak_boat", frame: "task" },
   { id: "ice_house", parent: "cat_extraction", kind: "building", icon: "minecraft:ice", frame: "task" },
   { id: "stone_cutter", parent: "cat_industry", kind: "building", icon: "minecraft:stonecutter", frame: "task" },
   { id: "blacksmith", parent: "cat_industry", kind: "building", icon: "minecraft:anvil", frame: "task" },
-  { id: "gold_smith", parent: "coppersmith", kind: "building", icon: "minecraft:gold_ingot", frame: "task" },
-  { id: "jeweller", parent: "gold_smith", kind: "building", icon: "minecraft:diamond", frame: "goal" },
-  { id: "coppersmith", parent: "blacksmith", kind: "building", icon: "minecraft:copper_ingot", frame: "task" },
+  { id: "gold_smith", parent: "cat_industry", kind: "building", icon: "minecraft:gold_ingot", frame: "task" },
+  { id: "jeweller", parent: "cat_industry", kind: "building", icon: "minecraft:diamond", frame: "goal" },
+  { id: "coppersmith", parent: "cat_industry", kind: "building", icon: "minecraft:copper_ingot", frame: "task" },
   { id: "kiln", parent: "cat_industry", kind: "building", icon: "minecraft:brick", frame: "task" },
   { id: "masons_yard", parent: "cat_industry", kind: "building", icon: "minecraft:deepslate", frame: "task" },
   { id: "farm", parent: "cat_agriculture", kind: "building", icon: "minecraft:wheat", frame: "task" },
-  { id: "windmill", parent: "farm", kind: "building", icon: "minecraft:hay_block", frame: "task" },
+  { id: "windmill", parent: "cat_agriculture", kind: "building", icon: "minecraft:hay_block", frame: "task" },
   { id: "barn", parent: "cat_husbandry", kind: "building", icon: "minecraft:hay_block", frame: "task" },
   { id: "leather_tanner", parent: "cat_husbandry", kind: "building", icon: "minecraft:leather", frame: "task" },
   { id: "shepherd", parent: "cat_husbandry", kind: "building", icon: "minecraft:white_wool", frame: "task" },
   { id: "spinnery", parent: "cat_husbandry", kind: "building", icon: "minecraft:string", frame: "task" },
-  { id: "weaver", parent: "spinnery", kind: "building", icon: "minecraft:white_banner", frame: "task" },
+  { id: "weaver", parent: "cat_husbandry", kind: "building", icon: "minecraft:white_banner", frame: "task" },
   { id: "apiary", parent: "cat_husbandry", kind: "building", icon: "minecraft:honeycomb", frame: "task" },
-  { id: "baker", parent: "blacksmith", kind: "building", icon: "minecraft:bread", frame: "task" },
-  { id: "butcher", parent: "lumbermill", kind: "building", icon: "minecraft:cooked_beef", frame: "task" },
+  { id: "baker", parent: "cat_food", kind: "building", icon: "minecraft:bread", frame: "task" },
+  { id: "butcher", parent: "cat_food", kind: "building", icon: "minecraft:cooked_beef", frame: "task" },
   { id: "brewery", parent: "cat_food", kind: "building", icon: "minecraft:brewing_stand", frame: "task" },
   { id: "fisher", parent: "cat_food", kind: "building", icon: "minecraft:fishing_rod", frame: "task" },
-  { id: "weapon_smith", parent: "lumbermill", kind: "building", icon: "minecraft:iron_sword", frame: "task" },
+  { id: "weapon_smith", parent: "cat_crafting", kind: "building", icon: "minecraft:iron_sword", frame: "task" },
   { id: "fletcher", parent: "cat_crafting", kind: "building", icon: "minecraft:bow", frame: "task" },
   { id: "glass_blower", parent: "cat_crafting", kind: "building", icon: "minecraft:glass", frame: "task" },
   { id: "painter", parent: "cat_crafting", kind: "building", icon: "minecraft:painting", frame: "task" },
   { id: "redstone_workshop", parent: "cat_crafting", kind: "building", icon: "minecraft:redstone", frame: "task" },
   { id: "bard", parent: "cat_crafting", kind: "building", icon: "minecraft:jukebox", frame: "task" },
-  { id: "armory", parent: "blacksmith", kind: "building", icon: "minecraft:iron_chestplate", frame: "task" },
+  { id: "armory", parent: "cat_crafting", kind: "building", icon: "minecraft:iron_chestplate", frame: "task" },
   { id: "library", parent: "cat_knowledge", kind: "building", icon: "minecraft:book", frame: "goal" },
-  { id: "school", parent: "library", kind: "building", icon: "minecraft:bookshelf", frame: "task" },
-  { id: "university", parent: "school", kind: "building", icon: "minecraft:obsidian", frame: "goal" },
-  { id: "cartographers_guild", parent: "blacksmith", kind: "building", icon: "minecraft:map", frame: "task" },
+  { id: "school", parent: "cat_knowledge", kind: "building", icon: "minecraft:bookshelf", frame: "task" },
+  { id: "university", parent: "cat_knowledge", kind: "building", icon: "minecraft:obsidian", frame: "goal" },
+  { id: "cartographers_guild", parent: "cat_knowledge", kind: "building", icon: "minecraft:map", frame: "task" },
   { id: "end_observatory", parent: "cat_knowledge", kind: "building", icon: "minecraft:end_stone", frame: "challenge" },
   { id: "custom", parent: "cat_special", kind: "building", icon: "minecraft:stick", frame: "task" },
 ];

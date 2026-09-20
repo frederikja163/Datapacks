@@ -54,8 +54,10 @@ export function build(): Datapack {
 
   // `$(id)` is the unique body tag. Coords are relative because this is always
   // invoked at the player. The profile and rotation are copied after the fact
-  // so the only macro value is a plain integer.
+  // so the only macro value is a plain integer. Any body left over from a
+  // previous spectate is removed first so duplicates cannot accumulate.
   const summonBody = d.defineFunction("body/summon", [
+    "$kill @e[tag=imsp_body_$(id)]",
     '$summon minecraft:mannequin ~ ~ ~ {Tags:["imsp_body","imsp_body_$(id)"],Invulnerable:1b,Silent:1b,hide_description:1b}',
     "$data modify entity @e[tag=imsp_body_$(id),limit=1] profile.id set from entity @s UUID",
     "$data modify entity @e[tag=imsp_body_$(id),limit=1] Rotation set from entity @s Rotation",
@@ -77,16 +79,15 @@ export function build(): Datapack {
     "$kill @e[tag=imsp_body_$(id)]",
   ]);
 
-  // Restore to the body whenever the player ends up back in survival, however
-  // that happened (our trigger or an admin /gamemode).
+  // Restore to the body whenever the player leaves spectator, however that
+  // happened (our trigger or an admin /gamemode to survival, creative or
+  // adventure).
   const gamemodeCheck = d.defineFunction("gamemode/check", [
     "execute if entity @s[gamemode=survival] run scoreboard players set @s imsp_gamemode 0",
     "execute if entity @s[gamemode=creative] run scoreboard players set @s imsp_gamemode 1",
     "execute if entity @s[gamemode=adventure] run scoreboard players set @s imsp_gamemode 2",
     "execute if entity @s[gamemode=spectator] run scoreboard players set @s imsp_gamemode 3",
-    "scoreboard players operation @s imsp_tmp = @s imsp_gamemode",
-    "scoreboard players operation @s imsp_tmp -= @s imsp_gamemode_prev",
-    "execute if score @s imsp_gamemode matches 0..0 unless score @s imsp_tmp matches 0..0 run function imsp:body/finish",
+    "execute if score @s imsp_gamemode_prev matches 3 unless score @s imsp_gamemode matches 3 run function imsp:body/finish",
     "scoreboard players operation @s imsp_gamemode_prev = @s imsp_gamemode",
   ]);
 

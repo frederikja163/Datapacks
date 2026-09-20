@@ -101,9 +101,12 @@ storages (the mine's ores, the fisher's fish) unlock one item at a time.
 ## House types
 
 Every plan uses **one plank** that decides the sign type — oak planks give an
-oak sign, spruce planks a spruce sign, and so on. Townhouses use two planks.
+oak sign, spruce planks a spruce sign, and so on. Townhouses use a plank plus a
+stick, and Custom uses a plank plus a sign.
 Place the sign first, then use the plan on it. Plans are the only way to build a
-new building.
+new building, and only the **Townhall Plan** can be crafted outside a town — the
+rest need you to be in one. The Townhall accepts any sapling and the Lumbermill
+any log; Custom accepts any sign.
 
 ## Special mechanics
 

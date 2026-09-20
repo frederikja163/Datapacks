@@ -34,9 +34,10 @@ export const GUIDE: readonly GuidePage[] = [
     lines: [
       "A plan is crafted from one plank plus the building's own item,",
       "so the plank's wood decides the sign you get (oak planks -> oak sign).",
-      "Townhouse plans are two planks of the same wood.",
+      "A townhouse plan is a plank plus a stick.",
       "Place the sign where you want the building, then right-click it.",
       "Plans are the only way to build a new building.",
+      "Only the Townhall Plan can be crafted outside a town; the rest need one.",
     ],
   },
   {

@@ -6,7 +6,8 @@ and unlocking recipes for every member.
 
 ## House types
 Each craft should always consist of one plank that determines the type of sign. For example spruce plank = spruce sign.
-And another item that is specified below (townhouse is two planks of the same type).
+And another item that is specified below. Only the Townhall Plan can be crafted
+outside a town; every other plan needs the crafter to be in one.
 
 A building can have a few different attributes:
  - Add villagers: Ability to add villagers
@@ -90,7 +91,7 @@ When creating a new town the player should automatically join said town.
 
 ### Townhouse
 Used to add villagers
- - Craft: Plank
+ - Craft: Stick
  - Add villagers
  - Unlocks: none.
 
@@ -111,6 +112,7 @@ Used to store and farm wood
  - Storage (mangrove chopper): mangrove logs — 1 / minute
  - Storage (cherry chopper): cherry logs — 1 / minute
  - Storage (pale oak chopper): pale oak logs — 1 / minute
+ - Storage (poplar chopper): poplar logs — 1 / minute
 
 Unlocks (Tool crafter, 1 villager):
  - `crafting_table`
@@ -634,7 +636,11 @@ Unlocks (Firekeeper, 1 villager):
 Research different technologies
  - Craft: Obsidian
  - Requires: School
+ - Unlock (Ender crafter): the end recipes below
  - Unlock (Portal): lets town members travel through Nether portals
+
+Unlocks (Ender crafter, 1 villager):
+ - `eye_of_ender`
 
 Portal (1 villager, mechanic — not a recipe):
  - Portals can always be lit and entered, but while Portal is unstaffed a town
@@ -660,13 +666,14 @@ Unlocks (Cartographer, 1 villager):
 ### End Observatory
 Studies the End and stores its exotic materials.
  - Craft: End stone
+ - Requires: University
  - Unlock (Astronomer): the end recipes below
 
 Unlocks (Astronomer, 1 villager):
  - `purpur_block`, `purpur_pillar`, `purpur_stairs`, `purpur_slab`
  - `end_stone_bricks`, `end_stone_brick_stairs`, `end_stone_brick_slab`,
    `end_stone_brick_wall`
- - `end_rod`, `ender_chest`, `eye_of_ender` (also Nether Outpost)
+ - `end_rod`, `ender_chest`
  - `shulker_box` and all 16 coloured shulker boxes
  - `end_crystal` (also Glass blower)
  - `beacon` (also Glass blower)
@@ -677,7 +684,7 @@ Unlocks (Astronomer, 1 villager):
 
 ### Custom
 Used for custom things that are not in this modpack yet
- - Craft: Stick
+ - Craft: Sign
  - Add villagers
  - Hire villagers (no benefit)
  - Fire workers (no benefit)

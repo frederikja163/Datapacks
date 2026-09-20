@@ -49,7 +49,7 @@ export const DOCS: PackDocs = {
   ],
   notes: [
     "Bodies are matched to players by a unique per-player id, so cleanup survives relogs and dimension changes.",
-    "The pack remembers your gamemode before spectating but always returns you to survival.",
+    "Leaving spectator always returns you to survival; a previous creative or adventure gamemode is not restored.",
     "Improved spectator is enabled by default for every player.",
   ],
 };

@@ -284,9 +284,6 @@ export function build(): Datapack {
   const syncAllRef = d.ref("jobs/unlock/sync_all");
   const discoverScanRef = d.ref("player/discover_scan");
 
-  const syncAllFor = (town: string): string =>
-    `$function ${syncAllRef.name} {"town":"${town}"}`;
-
   const eachAnchor = (command: string): Lines => [
     `execute as ${MARKER_ANCHOR} at @s align xyz run ${command}`,
   ];
@@ -354,7 +351,11 @@ export function build(): Datapack {
     `function ${countLoopRef.name}`,
   ]);
 
-  const activeLines: Lines = [];
+  // Every town satisfies the synthetic `town` requirement, which gates the
+  // building plans that have no other prerequisite.
+  const activeLines: Lines = [
+    `$data modify storage aom:data towns.$(town).unlocks.town set value 1b`,
+  ];
   for (const info of UNLOCK_INFO.values()) {
     activeLines.push(
       "scoreboard players set #c aom.tmp 0",
@@ -506,6 +507,14 @@ export function build(): Datapack {
   // can grant, then hand back exactly what the player's town currently has.
   // This keeps old saves working when recipes are added to or removed from a
   // building, and runs on join and on /reload.
+  //
+  // The active unlocks are recomputed first: `/reload` only runs this resync,
+  // so a town saved before the synthetic `town` unlock existed would otherwise
+  // grant no building plans until a later join or hire. The `towns` guard
+  // keeps a stale player reference from recreating a deleted town.
+  const playerResyncTown = d.defineFunction("player/resync/town", [
+    `$execute if data storage aom:data towns.$(town) run function ${computeActive.name} with storage aom:tmp resync`,
+  ]);
   const playerResyncRun = d.defineFunction("player/resync/run", [
     `$execute if data storage aom:data players.$(key).town run data modify storage aom:tmp resync.town set from storage aom:data players.$(key).town`,
     ...ALL_GATED.map((recipe) => `recipe take @s ${recipe}`),
@@ -517,6 +526,7 @@ export function build(): Datapack {
     ...TREE_STATIC.map(
       (node) => `advancement grant @s only aom:tree/${node.id}`,
     ),
+    `execute if data storage aom:tmp resync.town run function ${playerResyncTown.name} with storage aom:tmp resync`,
     `execute if data storage aom:tmp resync.town run function ${grantPlayer.name} with storage aom:tmp resync`,
     `execute if data storage aom:tmp resync.town run function ${grantBuildings.name} with storage aom:tmp resync`,
   ]);
@@ -1461,13 +1471,16 @@ export function build(): Datapack {
   const scanRefs = new Map<string, FunctionRef>();
   for (const type of BUILDINGS) {
     const plan = planById(type.id);
-    const dropSelector =
-      `@e[type=minecraft:item,distance=..1.5,nbt={Item:{id:"minecraft:oak_sign"}}]`;
     const remove = d.defineFunction(`build/scan/remove/${type.id}`, [
       "data remove storage aom:tmp pack",
       `$data modify storage aom:tmp pack.town set value "$(town)"`,
       `$data modify storage aom:tmp pack.building set value $(building)`,
-      `kill ${dropSelector}`,
+      "# The broken building sign can be any wood, so clear every sign drop before",
+      "# handing the plan back.",
+      ...SIGN_ITEMS.map(
+        (sign) =>
+          `kill @e[type=minecraft:item,distance=..1.5,nbt={Item:{id:"${sign}"}}]`,
+      ),
       `$function ${refOf(packRefs, type.id).name} with storage aom:tmp pack`,
       `summon minecraft:item ~ ~1 ~ {Item:${planItem(plan)}}`,
       `tellraw @a ${snbt([text("[aom] It was packed up; place its plan to rebuild it.", { color: "gray" })])}`,
@@ -1552,6 +1565,9 @@ export function build(): Datapack {
       (type) =>
         `$execute if data storage aom:data towns.$(town).buildings.$(id){type:"${type.id}"} run function ${refOf(placeCreateRefs, type.id).name} with storage aom:tmp place`,
     ),
+    "# Recompute the town now so the new building gets its `has` flag, job counts",
+    "# and advancement node without waiting for another sync.",
+    `$function ${syncAllRef.name} {"town":"$(town)"}`,
     `function ${placeFinish.name} with storage aom:tmp place`,
   ]);
 
@@ -2172,11 +2188,8 @@ export function build(): Datapack {
   ]);
 
   for (const plan of PLANS) {
-    const type = BUILDINGS.find((entry) => entry.id === plan.id)!;
     for (const wood of WOODS) {
-      const ingredients = type.id === "townhouse"
-        ? [wood.planks, wood.planks]
-        : [wood.planks, ...plan.extras];
+      const ingredients = [wood.planks, ...plan.extras];
       d.recipe(`plan/${plan.id}/${wood.name}`, {
         type: "minecraft:crafting_shapeless",
         ingredients,

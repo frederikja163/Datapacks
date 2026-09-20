@@ -115,6 +115,7 @@ export const RESOURCES: readonly Resource[] = [
   res("mangrove_logs", "Mangrove logs", "minecraft:mangrove_log"),
   res("cherry_logs", "Cherry logs", "minecraft:cherry_log"),
   res("pale_oak_logs", "Pale oak logs", "minecraft:pale_oak_log"),
+  res("poplar_logs", "Poplar logs", "minecraft:poplar_log"),
 
   res("coal", "Coal", "minecraft:coal"),
   res("raw_copper", "Raw copper", "minecraft:raw_copper"),
@@ -224,10 +225,13 @@ export interface BuildingType {
   readonly fire?: boolean;
   /** Unlock ids that must be staffed before the plan can be crafted. */
   readonly requires?: readonly string[];
-  /** Plan ingredients besides the wood plank. */
-  readonly planExtra: readonly ItemId[];
+  /** Plan ingredients besides the wood plank. May be a tag (`#minecraft:logs`). */
+  readonly planExtra: readonly PlanIngredient[];
   readonly jobs: readonly Job[];
 }
+
+/** A plan ingredient: an item id or a vanilla item tag. */
+export type PlanIngredient = ItemId | `#${string}`;
 
 const LOGS = RESOURCES.filter((entry) => entry.id.endsWith("_logs"));
 const ORES = [
@@ -641,7 +645,6 @@ const RECIPES_BY_BUILDING: Record<string, string[]> = {
     "minecraft:end_stone_brick_wall",
     "minecraft:end_rod",
     "minecraft:ender_chest",
-    "minecraft:ender_eye",
     "minecraft:shulker_box",
     ...colored("_shulker_box"),
     "minecraft:end_crystal",
@@ -713,7 +716,7 @@ export const BUILDINGS: readonly BuildingType[] = [
     category: "Civic",
     description: "Anchors the town and manages its membership.",
     townhall: true,
-    planExtra: ["minecraft:oak_sapling"],
+    planExtra: ["#minecraft:saplings"],
     jobs: [],
   },
   {
@@ -722,7 +725,7 @@ export const BUILDINGS: readonly BuildingType[] = [
     category: "Civic",
     description: "Houses villagers for the town.",
     population: true,
-    planExtra: [],
+    planExtra: ["minecraft:stick"],
     jobs: [],
   },
   {
@@ -730,7 +733,7 @@ export const BUILDINGS: readonly BuildingType[] = [
     label: "Lumbermill",
     category: "Extraction",
     description: "Generates and stores wood; unlocks wooden tool recipes.",
-    planExtra: ["minecraft:oak_log"],
+    planExtra: ["#minecraft:logs"],
     jobs: [
       unlock("tool_crafter", "Tool crafter", RECIPES_BY_BUILDING.lumbermill!),
       ...LOGS.flatMap(chopper),
@@ -1079,6 +1082,7 @@ export const BUILDINGS: readonly BuildingType[] = [
     requires: ["teacher"],
     planExtra: ["minecraft:obsidian"],
     jobs: [
+      unlock("ender", "Ender crafter", rList("minecraft:ender_eye")),
       { id: "portal", label: "Portal", kind: "mechanic", mechanic: "portal" },
     ],
   },
@@ -1095,6 +1099,7 @@ export const BUILDINGS: readonly BuildingType[] = [
     label: "End Observatory",
     category: "Knowledge",
     description: "Studies the End and stores its materials.",
+    requires: ["ender"],
     planExtra: ["minecraft:end_stone"],
     jobs: [unlock("astronomer", "Astronomer", RECIPES_BY_BUILDING.astronomer!)],
   },
@@ -1106,7 +1111,7 @@ export const BUILDINGS: readonly BuildingType[] = [
     population: true,
     removeVillagers: true,
     fire: true,
-    planExtra: ["minecraft:stick"],
+    planExtra: ["#minecraft:signs"],
     jobs: [{ id: "hire", label: "Hired help", kind: "mechanic", mechanic: "noop" }],
   },
 ];
@@ -1236,11 +1241,20 @@ export function recipeRequirements(): Map<string, string[]> {
         map.set(recipe, owners);
       }
     }
-    // Plan recipes are gated by the building's `requires` list.
+    // Plan recipes are gated by the building's `requires` list. Every plan
+    // without prerequisites (except the Townhall's) additionally needs the
+    // synthetic `town` requirement, so it cannot be crafted before joining a
+    // town; buildings with `requires` are already gated behind a staffed job
+    // that only exists in a town.
     for (const wood of WOODS) {
       const recipe = planRecipe(building.id, wood.name);
       const owners = map.get(recipe) ?? new Set<string>();
-      for (const unlockId of building.requires ?? []) owners.add(unlockId);
+      const required = building.requires?.length
+        ? building.requires
+        : building.id === "townhall"
+          ? []
+          : ["town"];
+      for (const unlockId of required) owners.add(unlockId);
       map.set(recipe, owners);
     }
   }
@@ -1255,7 +1269,7 @@ export function gatedRecipes(): string[] {
 }
 
 /** Plan ingredients (the wood plank is added per wood type by the build). */
-export function planExtras(type: BuildingType): readonly ItemId[] {
+export function planExtras(type: BuildingType): readonly PlanIngredient[] {
   return type.planExtra;
 }
 

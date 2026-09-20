@@ -14,6 +14,7 @@ import { derivedSections as dpsSections } from "./docs/dps.ts";
 import {
   PAGE_CSS,
   badge,
+  code,
   commandTable,
   esc,
   featureGrid,
@@ -21,6 +22,7 @@ import {
   noteList,
   paragraphList,
   section,
+  table,
   type NavPack,
 } from "./docs/render.ts";
 import { packs, type PackEntry } from "./packs.ts";
@@ -126,6 +128,44 @@ function packBody(pack: PackEntry, generatedAt: string): string {
   return parts.join("\n");
 }
 
+function versioningSection(): string {
+  const body =
+    paragraphList([
+      "Every pack is versioned independently from its VERSION file (MAJOR.MINOR). Releases are tagged <pack>-<version> and the patch number is incremented automatically, so the size of the change decides which line it belongs on.",
+    ]) +
+    table(
+      ["Change", "Bump", "How"],
+      [
+        [
+          "Small fix, balance tweak or wording",
+          `Patch ${code("1.1.0 → 1.1.1")}`,
+          `Automatic — leave ${code("VERSION")} alone`,
+        ],
+        [
+          "New, backwards-compatible feature (skill, powerup, command)",
+          `Minor ${code("1.1 → 1.2")}`,
+          `Edit ${code("VERSION")} to the new ${code("MAJOR.MINOR")}`,
+        ],
+        [
+          "Breaking change that needs an uninstall before upgrading",
+          `Major ${code("1.1 → 2.0")}`,
+          `Edit ${code("VERSION")} and call it out in the release notes`,
+        ],
+      ],
+    ) +
+    noteList([
+      "A patch only fixes or tunes existing behaviour; the release workflow bumps it for you.",
+      "A minor adds content and installs over the previous version in place — leftover objectives or storage are tolerated.",
+      "A major changes state or formats incompatibly: run the pack's uninstall function and remove the old datapack before installing the new one.",
+    ]);
+  return section(
+    "versioning",
+    "Versioning",
+    body,
+    "How release numbers are chosen for each datapack.",
+  );
+}
+
 function indexBody(nav: readonly NavPack[], generatedAt: string): string {
   const cards = nav
     .map((entry) => {
@@ -151,6 +191,7 @@ function indexBody(nav: readonly NavPack[], generatedAt: string): string {
   )}, authored in TypeScript. Every page here is generated from the same sources that build the datapacks.</p>
 </div>
 ${section("packs", "Datapacks", `<div class="grid">${cards}</div>`)}
+${versioningSection()}
 <p class="muted">Generated on ${esc(generatedAt)}.</p>`;
 }
 

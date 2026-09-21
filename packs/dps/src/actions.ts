@@ -228,8 +228,8 @@ export const ACTIONS = {
     { objective: "dps_potion_drunk", criteria: "minecraft.used:minecraft.potion", xp: 1 },
   ],
   acrobatics: [
-    { objective: "dps_jumps", criteria: "minecraft.custom:minecraft.jump", xp: 1 },
-    { objective: "dps_fall_cm", criteria: "minecraft.custom:minecraft.fall_one_cm", xp: 1, divisor: 100 },
+    { objective: "dps_jumps", criteria: "minecraft.custom:minecraft.jump", xp: 1, divisor: 20 },
+    { objective: "dps_fall_cm", criteria: "minecraft.custom:minecraft.fall_one_cm", xp: 1, divisor: 1000 },
   ],
   trading: [
     { objective: "dps_trades", criteria: "minecraft.custom:minecraft.traded_with_villager", xp: 2 },

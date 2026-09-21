@@ -273,14 +273,19 @@ export function build(): Datapack {
       "$scoreboard objectives add $(skill)_xp dummy",
       "$scoreboard objectives add $(skill)_req dummy",
       "$scoreboard objectives add $(skill)_percentage dummy",
+      "$scoreboard objectives add $(skill)_power dummy",
       "",
       '$data modify storage dps:skill $(skill).display set value "$(display)"',
     ]),
     giveXpSuccess: d.defineFunction("utility/give_xp/success", [
+      "# Keep the events that did not add up to a whole point, so a divisor",
+      "# can require several events per xp without discarding the remainder.",
+      "$scoreboard players operation __xp_rem__ dps_tmp = @s $(name)",
+      "$scoreboard players operation __xp_rem__ dps_tmp %= $(divisor) dps_globals",
       "$scoreboard players operation @s $(name) /= $(divisor) dps_globals",
       "$scoreboard players operation @s $(name) *= $(name) dps_xp_config",
       "$scoreboard players operation @s $(skill)_xp += @s $(name)",
-      "$scoreboard players set @s $(name) 0",
+      "$scoreboard players operation @s $(name) = __xp_rem__ dps_tmp",
       "",
       "# Seed the requirement so the first xp grant has something to divide by.",
       "$execute unless score @s $(skill)_req matches 1.. run scoreboard players set @s $(skill)_req 7",
@@ -767,15 +772,17 @@ export function build(): Datapack {
     ]),
     levelup: d.defineFunction("powerup/harvest/levelup", [
       "# radius = 1, +1 at level 200 and again at level 400",
+      "$scoreboard players operation @s dps_tmp = @s $(skill)_power",
       "scoreboard players set __power__ dps_tmp 1",
       "execute if score @s dps_farming_level matches 200.. run scoreboard players add __power__ dps_tmp 1",
       "execute if score @s dps_farming_level matches 400.. run scoreboard players add __power__ dps_tmp 1",
-      `tellraw @s ${snbt([
+      "$scoreboard players operation @s $(skill)_power = __power__ dps_tmp",
+      `$execute unless score @s dps_tmp = @s $(skill)_power run tellraw @s ${snbt([
         "    ",
         text("🌾 Harvest Moon", { color: "gold" }),
         text(" • ", { color: "dark_gray" }),
         text("Harvest radius ", { color: "gold" }),
-        score("__power__", "dps_tmp", { color: "aqua" }),
+        score("@s", "$(skill)_power", { color: "aqua" }),
       ])}`,
     ]),
   };
@@ -837,16 +844,18 @@ export function build(): Datapack {
     ]),
     levelup: d.defineFunction("powerup/repair/levelup", [
       "# pct = min(25, 5 + level / 50)",
+      "$scoreboard players operation @s dps_tmp = @s $(skill)_power",
       "scoreboard players operation __power__ dps_tmp = @s dps_enchanting_level",
       "scoreboard players operation __power__ dps_tmp /= 50 dps_globals",
       "scoreboard players add __power__ dps_tmp 5",
       "execute if score __power__ dps_tmp matches 25.. run scoreboard players set __power__ dps_tmp 25",
-      `tellraw @s ${snbt([
+      "$scoreboard players operation @s $(skill)_power = __power__ dps_tmp",
+      `$execute unless score @s dps_tmp = @s $(skill)_power run tellraw @s ${snbt([
         "    ",
         text("✨ Arcane Repair", { color: "gold" }),
         text(" • ", { color: "dark_gray" }),
         text("Restores ", { color: "gold" }),
-        score("__power__", "dps_tmp", { color: "aqua" }),
+        score("@s", "$(skill)_power", { color: "aqua" }),
         text("%", { color: "aqua" }),
         text(" of max durability", { color: "gold" }),
       ])}`,
@@ -892,17 +901,19 @@ export function build(): Datapack {
     ]),
     levelup: d.defineFunction("powerup/angler/levelup", [
       "# threshold = max(1, 10 - level / 50)",
+      "$scoreboard players operation @s dps_tmp = @s $(skill)_power",
       "scoreboard players operation __angler_lvl__ dps_tmp = @s dps_fishing_level",
       "scoreboard players operation __angler_lvl__ dps_tmp /= 50 dps_globals",
       "scoreboard players set __power__ dps_tmp 10",
       "scoreboard players operation __power__ dps_tmp -= __angler_lvl__ dps_tmp",
       "execute if score __power__ dps_tmp matches ..0 run scoreboard players set __power__ dps_tmp 1",
-      `tellraw @s ${snbt([
+      "$scoreboard players operation @s $(skill)_power = __power__ dps_tmp",
+      `$execute unless score @s dps_tmp = @s $(skill)_power run tellraw @s ${snbt([
         "    ",
         text("🐟 Angler's Luck", { color: "gold" }),
         text(" • ", { color: "dark_gray" }),
         text("Treasure every ", { color: "gold" }),
-        score("__power__", "dps_tmp", { color: "aqua" }),
+        score("@s", "$(skill)_power", { color: "aqua" }),
         text(" catches", { color: "gold" }),
       ])}`,
     ]),
@@ -934,14 +945,16 @@ export function build(): Datapack {
   });
   const alchemyLevelup = d.defineFunction("powerup/effect_extend/levelup", [
     "# bonus% = level / 4 (level / 400 of the base duration)",
+    "$scoreboard players operation @s dps_tmp = @s $(skill)_power",
     "scoreboard players operation __power__ dps_tmp = @s dps_alchemy_level",
     "scoreboard players operation __power__ dps_tmp /= 4 dps_globals",
-    `tellraw @s ${snbt([
+    "$scoreboard players operation @s $(skill)_power = __power__ dps_tmp",
+    `$execute unless score @s dps_tmp = @s $(skill)_power run tellraw @s ${snbt([
       "    ",
       text("⚗ Extended Potions", { color: "gold" }),
       text(" • ", { color: "dark_gray" }),
       text("+", { color: "gold" }),
-      score("__power__", "dps_tmp", { color: "aqua" }),
+      score("@s", "$(skill)_power", { color: "aqua" }),
       text("%", { color: "aqua" }),
       text(" potion duration", { color: "gold" }),
     ])}`,
@@ -961,14 +974,16 @@ export function build(): Datapack {
     ]),
     levelup: d.defineFunction("powerup/arrow_recovery/levelup", [
       "# chance = min(75, level / 7)",
+      "$scoreboard players operation @s dps_tmp = @s $(skill)_power",
       "scoreboard players operation __power__ dps_tmp = @s dps_archery_level",
       "scoreboard players operation __power__ dps_tmp /= 7 dps_globals",
       "execute if score __power__ dps_tmp matches 75.. run scoreboard players set __power__ dps_tmp 75",
-      `tellraw @s ${snbt([
+      "$scoreboard players operation @s $(skill)_power = __power__ dps_tmp",
+      `$execute unless score @s dps_tmp = @s $(skill)_power run tellraw @s ${snbt([
         "    ",
         text("🏹 Arrow Recovery", { color: "gold" }),
         text(" • ", { color: "dark_gray" }),
-        score("__power__", "dps_tmp", { color: "aqua" }),
+        score("@s", "$(skill)_power", { color: "aqua" }),
         text("%", { color: "aqua" }),
         text(" arrow return chance", { color: "gold" }),
       ])}`,
@@ -995,14 +1010,16 @@ export function build(): Datapack {
   });
   const twinsLevelup = d.defineFunction("powerup/twins/levelup", [
     "# chance = min(50, level / 10)",
+    "$scoreboard players operation @s dps_tmp = @s $(skill)_power",
     "scoreboard players operation __power__ dps_tmp = @s dps_taming_level",
     "scoreboard players operation __power__ dps_tmp /= 10 dps_globals",
     "execute if score __power__ dps_tmp matches 50.. run scoreboard players set __power__ dps_tmp 50",
-    `tellraw @s ${snbt([
+    "$scoreboard players operation @s $(skill)_power = __power__ dps_tmp",
+    `$execute unless score @s dps_tmp = @s $(skill)_power run tellraw @s ${snbt([
       "    ",
       text("🐾 Twins", { color: "gold" }),
       text(" • ", { color: "dark_gray" }),
-      score("__power__", "dps_tmp", { color: "aqua" }),
+      score("@s", "$(skill)_power", { color: "aqua" }),
       text("%", { color: "aqua" }),
       text(" twin chance", { color: "gold" }),
     ])}`,
@@ -1056,15 +1073,6 @@ export function build(): Datapack {
         text(" → ", { color: "white" }),
         text(" ⏳", { color: "red" }),
         score("@s", "dps_acrobatics_cooldown_max", { color: "aqua" }),
-      ])}`,
-      "",
-      `$tellraw @s ${snbt([
-        "    ",
-        text("Charged Fall Guard", { color: "gold" }),
-        text(" • ", { color: "dark_gray" }),
-        text("Saves ", { color: "gold" }),
-        text("1", { color: "aqua" }),
-        text(" ❤ per charge", { color: "gold" }),
       ])}`,
     ]),
     apply: d.defineFunction("powerup/fall_guard/apply", [
@@ -1584,7 +1592,7 @@ export function build(): Datapack {
     "dps_total_level",
     ...SKILLS.flatMap((skill) => {
       const base = `dps_${skill.name}`;
-      const suffixes = ["", "_level", "_xp", "_req", "_percentage"];
+      const suffixes = ["", "_level", "_xp", "_req", "_percentage", "_power"];
       if (skill.powerup === "effect") {
         suffixes.push(
           "_cooldown",

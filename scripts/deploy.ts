@@ -8,7 +8,7 @@ import {
   unlinkSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { packs } from "./packs.ts";
 
 interface DeployConfig {
@@ -18,6 +18,9 @@ interface DeployConfig {
   world: string;
   /** Optional subset of packs to deploy. Defaults to every pack. */
   packs?: string[];
+  /** Directory resource packs are installed to. Defaults to the sibling
+   *  `resourcepacks` folder of `savesDir`. */
+  resourcepacksDir?: string;
 }
 
 const CONFIG_FILE = "deploy.config.json";
@@ -66,6 +69,12 @@ function readConfig(): DeployConfig {
   ) {
     fail(`${CONFIG_FILE} "packs" must be an array of pack names.`);
   }
+  if (
+    config.resourcepacksDir !== undefined &&
+    typeof config.resourcepacksDir !== "string"
+  ) {
+    fail(`${CONFIG_FILE} "resourcepacksDir" must be a string.`);
+  }
 
   return config as unknown as DeployConfig;
 }
@@ -102,6 +111,10 @@ if (!existsSync(join(world, "level.dat"))) {
 const datapacksDir = join(world, "datapacks");
 mkdirSync(datapacksDir, { recursive: true });
 
+const resourcepacksDir = config.resourcepacksDir
+  ? expandHome(config.resourcepacksDir)
+  : join(dirname(savesDir), "resourcepacks");
+
 const selected = config.packs
   ? config.packs.map((name) => {
       const entry = packs.find((pack) => pack.name === name);
@@ -110,8 +123,11 @@ const selected = config.packs
     })
   : packs;
 
+const wantsResourcePack = selected.some((entry) => entry.resourcePack);
+if (wantsResourcePack) mkdirSync(resourcepacksDir, { recursive: true });
+
 console.log(`Deploying to ${world}`);
-for (const { name, build } of selected) {
+for (const { name, build, resourcePack } of selected) {
   const pack = build();
   const source = join("packs", name, "build", pack.namespace);
   pack.writeTo(source);
@@ -120,5 +136,20 @@ for (const { name, build } of selected) {
   removePath(dest);
   cpSync(source, dest, { recursive: true });
   console.log(`  ${pack.namespace} -> ${dest}`);
+
+  if (resourcePack) {
+    const rp = resourcePack();
+    const rpSource = join("packs", name, "build", `${rp.namespace}-rp`);
+    rp.writeTo(rpSource);
+    const rpDest = join(resourcepacksDir, `${rp.namespace}-rp`);
+    removePath(rpDest);
+    cpSync(rpSource, rpDest, { recursive: true });
+    console.log(`  ${rp.namespace}-rp -> ${rpDest}`);
+  }
 }
 console.log(`Done. Run /reload in game to apply.`);
+if (wantsResourcePack) {
+  console.log(
+    `Custom plan icons: enable the "aom-rp" resource pack in Options > Resource Packs.`,
+  );
+}

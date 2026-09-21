@@ -33,6 +33,13 @@ export function planRecipe(id: string, wood: string): string {
   return `aom:plan/${id}/${wood}`;
 }
 
+/** The `custom_model_data` string carried by a plan item. The aom resource
+ *  pack keys off it to swap the plan's borrowed vanilla icon for custom art
+ *  (see `resourcepack.ts`); it is inert when the pack is not installed. */
+export function planModelKey(id: string): string {
+  return `aom:plan/${id}`;
+}
+
 const COLORS = [
   "white",
   "orange",
@@ -216,6 +223,11 @@ export interface BuildingType {
   readonly label: string;
   readonly category: Category;
   readonly description: string;
+  /** Vanilla item whose model stands in for the plan, so plans are told apart
+   *  in the inventory and recipe book. The aom resource pack may override the
+   *  same item's model (keyed on the plan's `custom_model_data`) with custom
+   *  art; without the pack this vanilla icon is what players see. */
+  readonly icon: ItemId;
   readonly townhall?: boolean;
   /** Contributes villagers to the town's population. */
   readonly population?: boolean;
@@ -712,6 +724,7 @@ function cropFarmer(crop: Resource): Job[] {
 export const BUILDINGS: readonly BuildingType[] = [
   {
     id: "townhall",
+    icon: "minecraft:bell",
     label: "Townhall",
     category: "Civic",
     description: "Anchors the town and manages its membership.",
@@ -721,6 +734,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "townhouse",
+    icon: "minecraft:lantern",
     label: "Townhouse",
     category: "Civic",
     description: "Houses villagers for the town.",
@@ -730,6 +744,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "lumbermill",
+    icon: "minecraft:iron_axe",
     label: "Lumbermill",
     category: "Extraction",
     description: "Generates and stores wood; unlocks wooden tool recipes.",
@@ -741,6 +756,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "mine",
+    icon: "minecraft:stone_pickaxe",
     label: "Mine",
     category: "Extraction",
     description: "Lets the town dig deeper and produces raw ores.",
@@ -769,6 +785,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "quarry",
+    icon: "minecraft:iron_shovel",
     label: "Quarry",
     category: "Extraction",
     description: "Digs up stone and soil in bulk.",
@@ -777,6 +794,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "docks",
+    icon: "minecraft:oak_boat",
     label: "Docks",
     category: "Extraction",
     description: "Builds boats and rafts.",
@@ -785,6 +803,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "ice_house",
+    icon: "minecraft:snowball",
     label: "Ice House",
     category: "Extraction",
     description: "Harvests and stores ice and snow.",
@@ -799,6 +818,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "stone_cutter",
+    icon: "minecraft:stonecutter",
     label: "Stone cutter",
     category: "Industry",
     description: "Unlocks cobblestone and stone recipes.",
@@ -807,6 +827,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "blacksmith",
+    icon: "minecraft:anvil",
     label: "Blacksmith",
     category: "Industry",
     description: "Unlocks iron recipes.",
@@ -815,6 +836,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "gold_smith",
+    icon: "minecraft:gold_ingot",
     label: "Gold smith",
     category: "Industry",
     description: "Unlocks gold recipes.",
@@ -824,6 +846,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "jeweller",
+    icon: "minecraft:diamond",
     label: "Jeweller",
     category: "Industry",
     description: "Unlocks diamond and netherite recipes.",
@@ -836,6 +859,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "coppersmith",
+    icon: "minecraft:copper_ingot",
     label: "Coppersmith",
     category: "Industry",
     description: "Works copper into blocks, bulbs and lenses.",
@@ -845,6 +869,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "kiln",
+    icon: "minecraft:brick",
     label: "Kiln",
     category: "Industry",
     description: "Bakes clay and dyes into bricks, pots and concrete.",
@@ -853,6 +878,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "masons_yard",
+    icon: "minecraft:deepslate",
     label: "Mason's Yard",
     category: "Industry",
     description: "Cuts the deep rock: deepslate, tuff and mud.",
@@ -861,6 +887,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "farm",
+    icon: "minecraft:wheat",
     label: "Farm",
     category: "Agriculture",
     description: "Unlocks farming recipes and windmill plans.",
@@ -874,6 +901,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "windmill",
+    icon: "minecraft:wind_charge",
     label: "Windmill",
     category: "Agriculture",
     description: "Farms and stores every crop.",
@@ -883,6 +911,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "barn",
+    icon: "minecraft:hay_block",
     label: "Barn",
     category: "Husbandry",
     description: "Feeds the town's animals.",
@@ -891,6 +920,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "leather_tanner",
+    icon: "minecraft:leather",
     label: "Leather tanner",
     category: "Husbandry",
     description: "Unlocks leather recipes.",
@@ -899,6 +929,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "shepherd",
+    icon: "minecraft:white_wool",
     label: "Shepherd",
     category: "Husbandry",
     description: "Keeps track of sheep.",
@@ -911,6 +942,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "spinnery",
+    icon: "minecraft:string",
     label: "Spinnery",
     category: "Husbandry",
     description: "Spins wool and string into other materials.",
@@ -919,6 +951,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "weaver",
+    icon: "minecraft:shears",
     label: "Weaver",
     category: "Husbandry",
     description: "Weaves banners, patterns and beds.",
@@ -927,6 +960,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "apiary",
+    icon: "minecraft:honeycomb",
     label: "Apiary",
     category: "Husbandry",
     description: "Keeps bees and harvests honey and wax.",
@@ -939,6 +973,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "baker",
+    icon: "minecraft:bread",
     label: "Baker",
     category: "Food",
     description: "Unlocks baked recipes.",
@@ -947,6 +982,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "butcher",
+    icon: "minecraft:cooked_beef",
     label: "Butcher",
     category: "Food",
     description: "Butchers animals for meat.",
@@ -965,6 +1001,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "brewery",
+    icon: "minecraft:blaze_powder",
     label: "Brewery",
     category: "Food",
     description: "Unlocks brewing recipes.",
@@ -973,6 +1010,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "fisher",
+    icon: "minecraft:cod",
     label: "Fisher",
     category: "Food",
     description: "Fishes for the town.",
@@ -997,6 +1035,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "weapon_smith",
+    icon: "minecraft:iron_sword",
     label: "Weapon smith",
     category: "Crafting",
     description: "Unlocks swords and spears.",
@@ -1005,6 +1044,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "fletcher",
+    icon: "minecraft:arrow",
     label: "Fletcher",
     category: "Crafting",
     description: "Unlocks ranged weapons.",
@@ -1013,6 +1053,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "glass_blower",
+    icon: "minecraft:glass_bottle",
     label: "Glass blower",
     category: "Crafting",
     description: "Unlocks glass recipes.",
@@ -1021,6 +1062,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "painter",
+    icon: "minecraft:painting",
     label: "Painter",
     category: "Crafting",
     description: "Unlocks paintings.",
@@ -1029,6 +1071,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "redstone_workshop",
+    icon: "minecraft:redstone",
     label: "Redstone Workshop",
     category: "Crafting",
     description: "Unlocks redstone recipes.",
@@ -1037,6 +1080,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "bard",
+    icon: "minecraft:jukebox",
     label: "Bard",
     category: "Crafting",
     description: "Unlocks music recipes.",
@@ -1045,6 +1089,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "armory",
+    icon: "minecraft:iron_block",
     label: "Armory",
     category: "Crafting",
     description: "Fits the town's guards with armor.",
@@ -1053,6 +1098,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "library",
+    icon: "minecraft:bookshelf",
     label: "Library",
     category: "Knowledge",
     description: "Stores books and unlocks enchanting.",
@@ -1064,6 +1110,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "school",
+    icon: "minecraft:book",
     label: "School",
     category: "Knowledge",
     description: "Teaches the town's basics.",
@@ -1076,6 +1123,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "university",
+    icon: "minecraft:ender_eye",
     label: "University",
     category: "Knowledge",
     description: "Researches technologies, including Nether travel.",
@@ -1088,6 +1136,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "cartographers_guild",
+    icon: "minecraft:lodestone",
     label: "Cartographer's Guild",
     category: "Knowledge",
     description: "Maps the land and places lodestones.",
@@ -1096,6 +1145,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "end_observatory",
+    icon: "minecraft:end_stone",
     label: "End Observatory",
     category: "Knowledge",
     description: "Studies the End and stores its materials.",
@@ -1105,6 +1155,7 @@ export const BUILDINGS: readonly BuildingType[] = [
   },
   {
     id: "custom",
+    icon: "minecraft:crafting_table",
     label: "Custom",
     category: "Special",
     description: "A blank building for whatever the town needs.",

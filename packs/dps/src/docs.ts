@@ -65,6 +65,7 @@ export const DOCS: PackDocs = {
     "Effects last 1s + level/10 seconds and are level 1 + level/100; the cooldown is fixed at 300s.",
     "Arcane Repair costs 3 XP levels and restores 5% + level/50 of max durability (capped at 25%, 10s cooldown).",
     "Tree Cutter charges cap at 1 + level/100 and recharge faster at higher levels.",
+    "Charged Fall Guard spends one charge per whole heart of fall damage; charges cap at 1 + level/100 and recharge every 300s at level 0, down to instant at level 600.",
     "Harvest Moon grows to radius 2 at level 200 and radius 3 at level 400.",
     "Items made unbreakable by the Unbreakable datapack are never damaged by DPS powerups.",
   ],

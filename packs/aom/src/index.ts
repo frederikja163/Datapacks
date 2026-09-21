@@ -20,6 +20,7 @@ import {
   waxSign,
   type Color,
   type FunctionRef,
+  type ItemId,
   type Lines,
   type TextComponent,
 } from "../../../mcgen/src/index.ts";
@@ -46,6 +47,7 @@ import {
   generationJobs,
   hireAction,
   planExtras,
+  planModelKey,
   planRecipe,
   populationAction,
   recipeRequirements,
@@ -84,6 +86,7 @@ interface Plan {
   readonly label: string;
   readonly lore: string;
   readonly extras: readonly string[];
+  readonly icon: ItemId;
 }
 
 const PLANS: readonly Plan[] = BUILDINGS.map((type) => ({
@@ -91,6 +94,7 @@ const PLANS: readonly Plan[] = BUILDINGS.map((type) => ({
   label: `${type.label} Plan`,
   lore: `Craft, then place a sign to build a ${type.label.toLowerCase()}`,
   extras: [...planExtras(type)],
+  icon: type.icon,
 }));
 
 const planById = (id: string): Plan => {
@@ -103,7 +107,17 @@ const planComponents = (plan: Plan): Record<string, unknown> => ({
   "minecraft:custom_data": { aom: { plan: plan.id } },
   "minecraft:custom_name": { text: plan.label, color: "gold", italic: false },
   "minecraft:lore": [{ text: plan.lore, color: "gray", italic: false }],
+  // Each plan borrows a distinct vanilla item model, so ten plans in an
+  // inventory (and the recipe book, which renders the result item) do not all
+  // look like the same sign. The aom resource pack keys off the
+  // `custom_model_data` string to swap in custom art; when it is absent the
+  // vanilla `item_model` still renders.
+  "minecraft:item_model": plan.icon,
+  "minecraft:custom_model_data": { strings: [planModelKey(plan.id)] },
 });
+
+/** Recipe-book group shared by every wood of a plan (see the recipe build). */
+const planGroup = (id: string): string => `aom_plan_${id}`;
 
 const planItem = (plan: Plan): string =>
   JSON.stringify({
@@ -2192,6 +2206,10 @@ export function build(): Datapack {
       const ingredients = [wood.planks, ...plan.extras];
       d.recipe(`plan/${plan.id}/${wood.name}`, {
         type: "minecraft:crafting_shapeless",
+        // Every wood yields the same plan for a building, so they share a
+        // recipe-book group and show up as one entry whose wood variants are
+        // picked on right click (the same way vanilla groups its signs).
+        group: planGroup(plan.id),
         ingredients,
         result: {
           id: wood.sign,

@@ -5,6 +5,7 @@ export * from "./docs.ts";
 export * from "./models/index.ts";
 export * from "./pack.ts";
 export * from "./raycast.ts";
+export * from "./resourcepack.ts";
 export * from "./signs.ts";
 export * from "./text.ts";
 export * from "./triggers.ts";

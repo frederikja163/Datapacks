@@ -97,8 +97,13 @@ function releaseBadge(pack: PackEntry): string {
   return release ? badge(`v${release}`, "hot") : badge(`v${base}`);
 }
 
+/**
+ * The releases list filtered with the search query GitHub understands,
+ * `/releases?q=<tag prefix>`. Releases are tagged `<pack>-<version>`, so the
+ * trailing hyphen matches only that pack's releases.
+ */
 function releaseLink(pack: PackEntry): string {
-  return `${REPO}/releases?q=${encodeURIComponent(pack.name)}`;
+  return `${REPO}/releases?q=${encodeURIComponent(`${pack.name}-`)}`;
 }
 
 interface Download {

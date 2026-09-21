@@ -13,7 +13,7 @@ export const DOCS: PackDocs = {
     {
       title: "Plans and buildings",
       detail:
-        "A plan is crafted from a wood plank plus the building's own item, so the plank's wood decides the sign. Place the sign, then right-click to build.",
+        "A plan is crafted from a wood plank plus the building's own item, so the plank's wood decides the sign. Place the sign, then right-click to build. Every plan borrows a distinct item icon, so a bag full of plans is easy to tell apart, and the recipe book shows the same icon.",
     },
     {
       title: "Towns and members",
@@ -71,5 +71,6 @@ export const DOCS: PackDocs = {
     "Jobs are permanent, except Custom's Hired help, which can be fired again.",
     "The town pays one villager per worker hired, and only a town's last member can delete it.",
     "Plans are the only way to build a new building; the sign is placed where you want the building.",
+    "The optional aom-rp resource pack replaces the borrowed plan icons with custom art. Without it, plans keep the vanilla icon, so the pack is never required.",
   ],
 };
